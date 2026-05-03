@@ -72,8 +72,8 @@ On the login page, the small **API:** line shows which URL the browser will call
 | `npm run prisma:migrate` | `prisma migrate dev` (creates/applies migrations in **dev**) |
 | `npm run prisma:deploy` | `prisma migrate deploy` (applies existing migrations in **prod/CI**) |
 | `npm run prisma:validate` | `prisma validate` |
-| `npm run start:prod` | Start Nest only (assumes DB already migrated) |
-| `npm run start:prod:with-migrate` | **`prisma migrate deploy` then Nest** — use on **Render** |
+| `npm run start:prod` | Start Nest (`main.ts` runs **`prisma migrate deploy`** before listening) |
+| `npm run start:prod:with-migrate` | Same as **`start:prod`** (kept for existing Render configs) |
 
 Initial migration: `prisma/migrations/20260203120000_initial/migration.sql` creates all tables (including **`public.Business`**).
 
@@ -93,7 +93,7 @@ npm run prisma:push
 ### Production (any host)
 
 1. Set **`DATABASE_URL`** (no hardcoded URLs in code).
-2. **`npm run prisma:deploy`** before first start, **or** use **`npm run start:prod:with-migrate`** as the process start command so every deploy applies pending migrations.
+2. **`npm run prisma:deploy`** once from CI/shell if you need migrations without starting the app, **or** just start the API — **`main.ts` runs `prisma migrate deploy`** on boot when `DATABASE_URL` is set (unless `PRISMA_SKIP_MIGRATE=1`).
 
 Do **not** rely on `prisma db push` in production unless you intentionally avoid Migrate.
 
@@ -104,19 +104,19 @@ Point the service at the **`backend/`** directory (or run commands from there).
 | Setting | Example |
 |--------|---------|
 | **Build command** | `npm ci && npm run build` |
-| **Start command** | `npm run start:prod:with-migrate` |
+| **Start command** | `npm run start:prod` (or `start:prod:with-migrate` — same) |
 
-`start:prod:with-migrate` runs **`prisma migrate deploy`** before starting Nest, so tables like **`Business`** are created on first boot. Ensure **`DATABASE_URL`** is set to your Render Postgres (Internal or External URL).
+On boot, the process runs **`prisma migrate deploy`** (from **`main.ts`**) before Nest accepts traffic, so tables like **`Business`** exist on first deploy. Set **`DATABASE_URL`** to your Render Postgres (Internal or External URL).
 
-If you prefer not to migrate on every boot, use **`npm run start:prod`** after running **`npx prisma migrate deploy`** once (e.g. Render Shell or local CLI against the same `DATABASE_URL`).
+To skip programmatic migrate (e.g. unusual hosting), set **`PRISMA_SKIP_MIGRATE=1`** and run **`npx prisma migrate deploy`** yourself before each release.
 
 ### Error: `The table public.Business does not exist`
 
 The database is empty — migrations were never applied.
 
-1. Set **`DATABASE_URL`** on the host to your Postgres.
-2. Run **`npx prisma migrate deploy`** from **`backend/`** (same connection string the app uses).
-3. Or switch Render **Start command** to **`npm run start:prod:with-migrate`** and redeploy.
+1. Set **`DATABASE_URL`** on the host to your Postgres (must match the DB you intend to use).
+2. **Redeploy** the API so a current build runs boot-time **`prisma migrate deploy`** (see `backend/src/main.ts` + `run-migrate-deploy.ts`).
+3. Or run **`npx prisma migrate deploy`** once from **`backend/`** against that same URL (Render Shell or your laptop).
 
 ## Build & run locally (production mode)
 
@@ -126,10 +126,11 @@ The database is empty — migrations were never applied.
 cd backend
 cp .env.example .env   # edit with real secrets and DATABASE_URL
 npm ci
-npx prisma migrate deploy
 npm run build
 npm run start:prod
 ```
+
+(`start:prod` applies migrations on boot; you can still run `npm run prisma:deploy` manually if you prefer.)
 
 Listens on `PORT` (default **5000**). API routes are under `http://<host>:<port>/api/...`.
 

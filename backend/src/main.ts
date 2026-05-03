@@ -4,9 +4,11 @@ import { AppModule } from './app.module';
 import { GlobalExceptionFilter } from './core/filters/global-exception.filter';
 import { SerializeInterceptor } from './core/interceptors/serialize.interceptor';
 import { normalizeCredential } from './auth/utils/env-credentials';
+import { runPrismaMigrateDeploy } from './prisma/run-migrate-deploy';
 
 async function bootstrap() {
   const logger = new Logger('Bootstrap');
+  runPrismaMigrateDeploy(logger);
   const adminId = normalizeCredential(process.env.SUPER_ADMIN_ID);
   const adminPw = normalizeCredential(process.env.SUPER_ADMIN_PASSWORD);
   if (!adminId || !adminPw) {
