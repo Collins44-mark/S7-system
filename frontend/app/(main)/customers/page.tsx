@@ -1,8 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useI18n } from "@/lib/i18n-context";
+import { useSearch } from "@/lib/search-context";
 import { api } from "@/lib/api";
-import { money, paymentLabel } from "@/lib/format";
+import { money } from "@/lib/format";
 import { getApiErrorMessage } from "@/lib/api-error";
 import { useAsyncData } from "@/hooks/use-async-data";
 import { ErrorBanner } from "@/components/error-banner";
@@ -35,12 +37,12 @@ import {
 } from "@/components/ui/table";
 import { Users } from "lucide-react";
 
-const PAYMENT = [
-  { v: "CASH", l: "Cash" },
-  { v: "MPESA", l: "M-Pesa" },
-  { v: "AIRTEL_MONEY", l: "Airtel Money" },
-  { v: "TIGO_PESA", l: "Tigo Pesa" },
-  { v: "BANK", l: "Bank" },
+const PAYMENT_CODES = [
+  "CASH",
+  "MPESA",
+  "AIRTEL_MONEY",
+  "TIGO_PESA",
+  "BANK",
 ] as const;
 
 type Debt = {
@@ -55,6 +57,8 @@ type Debt = {
 };
 
 export default function CustomersPage() {
+  const { t } = useI18n();
+  const { query } = useSearch();
   const load = useCallback(async () => {
     const { data } = await api.get<Debt[]>("/debts");
     return data;
@@ -64,13 +68,23 @@ export default function CustomersPage() {
 
   const [payDebt, setPayDebt] = useState<Debt | null>(null);
 
+  const list = useMemo(() => debts ?? [], [debts]);
+  const qDebt = query.trim().toLowerCase();
+  const filteredDebts = useMemo(() => {
+    if (!qDebt) return list;
+    return list.filter((d) => {
+      const name = d.customer.name.toLowerCase();
+      const phone = d.customer.phone.toLowerCase();
+      const order = d.order.orderNumber.toLowerCase();
+      return name.includes(qDebt) || phone.includes(qDebt) || order.includes(qDebt);
+    });
+  }, [list, qDebt]);
+
   if (loading && !debts) {
     return (
       <div className="animate-in-page space-y-4">
-        <h1 className="text-2xl font-bold text-slate-800">
-          Customers (debtors)
-        </h1>
-        <PageLoading label="Loading balances…" />
+        <h1 className="text-2xl font-bold text-slate-800">{t("customers.title")}</h1>
+        <PageLoading label={t("customers.loading")} />
         <div className="glass overflow-hidden rounded-2xl">
           <TableSkeletonRows rows={5} />
         </div>
@@ -81,54 +95,52 @@ export default function CustomersPage() {
   if (error && !debts) {
     return (
       <div className="animate-in-page space-y-4">
-        <h1 className="text-2xl font-bold text-slate-800">
-          Customers (debtors)
-        </h1>
+        <h1 className="text-2xl font-bold text-slate-800">{t("customers.title")}</h1>
         <ErrorBanner message={error} onRetry={() => refetch()} />
       </div>
     );
   }
 
-  const list = debts ?? [];
-
   return (
     <div className="animate-in-page space-y-6">
       {error && <ErrorBanner message={error} onRetry={() => refetch()} />}
-      <h1 className="text-2xl font-bold text-slate-800">
-        Customers (debtors)
-      </h1>
+      <h1 className="text-2xl font-bold text-slate-800">{t("customers.title")}</h1>
       <div className="glass overflow-hidden rounded-2xl">
         {list.length === 0 ? (
           <div className="p-6">
             <EmptyState
               icon={Users}
-              title="No outstanding debt"
-              description="When a customer underpays an order, the balance appears here so you can record payments later."
+              title={t("customers.emptyTitle")}
+              description={t("customers.emptyDesc")}
             />
+          </div>
+        ) : filteredDebts.length === 0 ? (
+          <div className="p-6 text-center text-sm text-slate-600">
+            {t("dashboard.noSearchResults")}
           </div>
         ) : (
           <Table>
             <TableHeader>
               <TableRow className="bg-slate-50/50 hover:bg-slate-50/50">
                 <TableHead className="text-xs uppercase text-slate-500">
-                  Name
+                  {t("customers.col.name")}
                 </TableHead>
                 <TableHead className="text-xs uppercase text-slate-500">
-                  Phone
+                  {t("customers.col.phone")}
                 </TableHead>
                 <TableHead className="text-xs uppercase text-slate-500">
-                  Owed
+                  {t("customers.col.owed")}
                 </TableHead>
                 <TableHead className="text-xs uppercase text-slate-500">
-                  Order
+                  {t("customers.col.order")}
                 </TableHead>
                 <TableHead className="text-xs uppercase text-slate-500">
-                  Action
+                  {t("customers.col.action")}
                 </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {list.map((d) => {
+              {filteredDebts.map((d) => {
                 const lastPay = d.order.payments[0]?.createdAt;
                 return (
                   <TableRow key={d.id} className="border-slate-100">
@@ -143,7 +155,7 @@ export default function CustomersPage() {
                       #{d.order.orderNumber}
                       {lastPay && (
                         <span className="block text-xs text-slate-400">
-                          Last payment{" "}
+                          {t("customers.lastPayment")}{" "}
                           {new Date(lastPay).toLocaleDateString()}
                         </span>
                       )}
@@ -155,7 +167,7 @@ export default function CustomersPage() {
                         className="rounded-lg bg-green-100 text-green-800 hover:bg-green-200"
                         onClick={() => setPayDebt(d)}
                       >
-                        Record payment
+                        {t("customers.recordPay")}
                       </Button>
                     </TableCell>
                   </TableRow>
@@ -168,6 +180,7 @@ export default function CustomersPage() {
 
       <PayDebtDialog
         debt={payDebt}
+        t={t}
         onClose={() => setPayDebt(null)}
         onPaid={() => {
           setPayDebt(null);
@@ -180,10 +193,12 @@ export default function CustomersPage() {
 
 function PayDebtDialog({
   debt,
+  t,
   onClose,
   onPaid,
 }: {
   debt: Debt | null;
+  t: (key: string, vars?: Record<string, string | number>) => string;
   onClose: () => void;
   onPaid: () => void;
 }) {
@@ -222,12 +237,16 @@ function PayDebtDialog({
     <Dialog open={!!debt} onOpenChange={(v) => !v && onClose()}>
       <DialogContent className="glass rounded-2xl">
         <DialogHeader>
-          <DialogTitle>Payment for {debt?.customer.name}</DialogTitle>
+          <DialogTitle>
+            {debt
+              ? t("customers.paymentTitle", { name: debt.customer.name })
+              : ""}
+          </DialogTitle>
         </DialogHeader>
         <form onSubmit={submit} className="space-y-4">
           {err && <p className="text-sm text-red-600">{err}</p>}
           <div>
-            <Label>Amount (full balance or partial)</Label>
+            <Label>{t("customers.amountLabel")}</Label>
             <Input
               type="number"
               step="0.01"
@@ -239,7 +258,7 @@ function PayDebtDialog({
             />
           </div>
           <div>
-            <Label>Method</Label>
+            <Label>{t("customers.method")}</Label>
             <Select
               value={method}
               onValueChange={(v) => v && setMethod(v)}
@@ -248,9 +267,9 @@ function PayDebtDialog({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {PAYMENT.map((p) => (
-                  <SelectItem key={p.v} value={p.v}>
-                    {paymentLabel(p.v)}
+                {PAYMENT_CODES.map((code) => (
+                  <SelectItem key={code} value={code}>
+                    {t(`payment.${code}`)}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -261,7 +280,7 @@ function PayDebtDialog({
             disabled={loading}
             className="btn-primary-gradient w-full rounded-xl text-white"
           >
-            {loading ? "Saving…" : "Apply payment"}
+            {loading ? t("customers.savingPayment") : t("customers.applyPayment")}
           </Button>
         </form>
       </DialogContent>

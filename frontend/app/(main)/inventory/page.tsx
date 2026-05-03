@@ -1,6 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useI18n } from "@/lib/i18n-context";
+import { useSearch } from "@/lib/search-context";
 import { api } from "@/lib/api";
 import { money, parseAmount } from "@/lib/format";
 import { useAsyncData } from "@/hooks/use-async-data";
@@ -96,6 +98,8 @@ function normalizeCategories(raw: unknown): Category[] {
 }
 
 export default function InventoryPage() {
+  const { t } = useI18n();
+  const { query } = useSearch();
   const [addOpen, setAddOpen] = useState(false);
   const [editItem, setEditItem] = useState<Item | null>(null);
   const [restockItem, setRestockItem] = useState<Item | null>(null);
@@ -113,11 +117,20 @@ export default function InventoryPage() {
 
   const { data, error, loading, refetch } = useAsyncData(load, [load]);
 
-  const items = data?.items ?? [];
-  const categories = data?.categories ?? [];
+  const items = useMemo(() => data?.items ?? [], [data]);
+  const categories = useMemo(() => data?.categories ?? [], [data]);
+  const qInv = query.trim().toLowerCase();
+  const filteredItems = useMemo(() => {
+    if (!qInv) return items;
+    return items.filter(
+      (i) =>
+        i.name.toLowerCase().includes(qInv) ||
+        i.category.name.toLowerCase().includes(qInv),
+    );
+  }, [items, qInv]);
 
   async function remove(id: string) {
-    if (!confirm("Delete this item?")) return;
+    if (!confirm(t("inventory.deleteConfirm"))) return;
     try {
       await api.delete(`/items/${id}`);
       await refetch();
@@ -129,8 +142,8 @@ export default function InventoryPage() {
   if (loading && !data) {
     return (
       <div className="animate-in-page space-y-4">
-        <h1 className="text-2xl font-bold text-slate-800">Inventory</h1>
-        <PageLoading label="Loading inventory…" />
+        <h1 className="text-2xl font-bold text-slate-800">{t("inventory.title")}</h1>
+        <PageLoading label={t("inventory.loading")} />
         <div className="glass overflow-hidden rounded-2xl">
           <TableSkeletonRows rows={8} />
         </div>
@@ -141,7 +154,7 @@ export default function InventoryPage() {
   if (error && !data) {
     return (
       <div className="animate-in-page space-y-4">
-        <h1 className="text-2xl font-bold text-slate-800">Inventory</h1>
+        <h1 className="text-2xl font-bold text-slate-800">{t("inventory.title")}</h1>
         <ErrorBanner message={error} onRetry={() => refetch()} />
       </div>
     );
@@ -151,50 +164,48 @@ export default function InventoryPage() {
     <div className="animate-in-page space-y-6">
       {error && <ErrorBanner message={error} onRetry={() => refetch()} />}
       <div className="flex flex-wrap items-center justify-between gap-4">
-        <h1 className="text-2xl font-bold text-slate-800">Inventory</h1>
+        <h1 className="text-2xl font-bold text-slate-800">{t("inventory.title")}</h1>
         <Button
           className="btn-primary-gradient rounded-xl text-white"
           onClick={() => setAddOpen(true)}
         >
           <Plus className="mr-2 h-4 w-4" />
-          Add item
+          {t("inventory.addItem")}
         </Button>
       </div>
       {categories.length === 0 && (
-        <ErrorBanner
-          message="Add at least one category before creating items (Categories in the sidebar)."
-        />
+        <ErrorBanner message={t("inventory.addCategoryFirst")} />
       )}
       <div className="glass overflow-hidden rounded-2xl">
         <Table>
           <TableHeader>
             <TableRow className="border-slate-100 bg-slate-50/50 hover:bg-slate-50/50">
               <TableHead className="text-xs uppercase text-slate-500">
-                Item
+                {t("inventory.col.item")}
               </TableHead>
               <TableHead className="text-xs uppercase text-slate-500">
-                Category
+                {t("inventory.col.category")}
               </TableHead>
               <TableHead className="text-xs uppercase text-slate-500">
-                Buy
+                {t("inventory.col.buy")}
               </TableHead>
               <TableHead className="text-xs uppercase text-slate-500">
-                Sell
+                {t("inventory.col.sell")}
               </TableHead>
               <TableHead className="text-xs uppercase text-slate-500">
-                Qty
+                {t("inventory.col.qty")}
               </TableHead>
               <TableHead className="text-xs uppercase text-slate-500">
-                Profit / unit
+                {t("inventory.col.profit")}
               </TableHead>
               <TableHead className="text-xs uppercase text-slate-500">
-                Status
+                {t("inventory.col.status")}
               </TableHead>
               <TableHead className="w-10" />
             </TableRow>
           </TableHeader>
           <TableBody>
-            {items.map((item) => {
+            {filteredItems.map((item) => {
               const low = item.quantity <= item.lowStockThreshold;
               const buy = parseAmount(item.buyingPrice);
               const sell = parseAmount(item.sellingPrice);
@@ -221,7 +232,7 @@ export default function InventoryPage() {
                           : "rounded-full bg-green-100 px-2 py-1 text-xs font-medium text-green-700"
                       }
                     >
-                      {low ? "Low stock" : "In stock"}
+                      {low ? t("inventory.lowStock") : t("inventory.inStock")}
                     </span>
                   </TableCell>
                   <TableCell>
@@ -231,16 +242,16 @@ export default function InventoryPage() {
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
                         <DropdownMenuItem onClick={() => setEditItem(item)}>
-                          Edit
+                          {t("inventory.edit")}
                         </DropdownMenuItem>
                         <DropdownMenuItem onClick={() => setRestockItem(item)}>
-                          Restock
+                          {t("inventory.restock")}
                         </DropdownMenuItem>
                         <DropdownMenuItem
                           className="text-red-600"
                           onClick={() => remove(item.id)}
                         >
-                          Delete
+                          {t("common.delete")}
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
@@ -254,9 +265,14 @@ export default function InventoryPage() {
           <div className="p-4">
             <EmptyState
               icon={Layers}
-              title="No inventory items"
-              description="Create a category, then add your first product with buy/sell price and quantity."
+              title={t("inventory.emptyTitle")}
+              description={t("inventory.emptyDesc")}
             />
+          </div>
+        )}
+        {items.length > 0 && filteredItems.length === 0 && (
+          <div className="p-4 text-center text-sm text-slate-600">
+            {t("dashboard.noSearchResults")}
           </div>
         )}
       </div>
@@ -305,6 +321,7 @@ function ItemFormDialog({
   initial?: Item;
   onSaved: () => void;
 }) {
+  const { t } = useI18n();
   const [name, setName] = useState("");
   const [categoryId, setCategoryId] = useState("");
   const [buyingPrice, setBuyingPrice] = useState("");
@@ -447,7 +464,9 @@ function ItemFormDialog({
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
       <DialogContent className="glass max-w-md rounded-2xl">
         <DialogHeader>
-          <DialogTitle>{initial ? "Edit item" : "Add item"}</DialogTitle>
+          <DialogTitle>
+            {initial ? t("inventory.dialogEditItem") : t("inventory.addItem")}
+          </DialogTitle>
         </DialogHeader>
         <form onSubmit={submit} className="space-y-4">
           {formSuccess && (
@@ -590,6 +609,7 @@ function RestockDialog({
   onClose: () => void;
   onSaved: () => void;
 }) {
+  const { t } = useI18n();
   const [qty, setQty] = useState("");
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
@@ -620,7 +640,11 @@ function RestockDialog({
     <Dialog open={!!item} onOpenChange={(v) => !v && onClose()}>
       <DialogContent className="glass rounded-2xl">
         <DialogHeader>
-          <DialogTitle>Restock {item?.name}</DialogTitle>
+          <DialogTitle>
+            {item
+              ? t("inventory.restockDialog", { name: item.name })
+              : t("inventory.restock")}
+          </DialogTitle>
         </DialogHeader>
         <form onSubmit={submit} className="space-y-4">
           <div>

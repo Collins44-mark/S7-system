@@ -1,8 +1,10 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
+import { useI18n } from "@/lib/i18n-context";
+import { useSearch } from "@/lib/search-context";
 import { api } from "@/lib/api";
-import { money } from "@/lib/format";
+import { money, parseAmount } from "@/lib/format";
 import { useAsyncData } from "@/hooks/use-async-data";
 import { ErrorBanner } from "@/components/error-banner";
 import { PageLoading } from "@/components/page-loading";
@@ -48,6 +50,8 @@ type ReportPayload = {
 };
 
 export default function ReportsPage() {
+  const { t } = useI18n();
+  const { query } = useSearch();
   const [period, setPeriod] = useState<Period>("daily");
   const [custom, setCustom] = useState(false);
   const [from, setFrom] = useState("");
@@ -81,11 +85,22 @@ export default function ReportsPage() {
     load,
   ]);
 
+  const restocks = useMemo(() => data?.restocks ?? [], [data]);
+  const qRep = query.trim().toLowerCase();
+  const restocksFiltered = useMemo(() => {
+    if (!qRep) return restocks;
+    return restocks.filter((r) => {
+      const name = r.item.name.toLowerCase();
+      const notes = (r.notes ?? "").toLowerCase();
+      return name.includes(qRep) || notes.includes(qRep);
+    });
+  }, [restocks, qRep]);
+
   if (loading && !data) {
     return (
       <div className="animate-in-page space-y-4">
-        <h1 className="text-2xl font-bold text-slate-800">Reports</h1>
-        <PageLoading label="Loading reports…" />
+        <h1 className="text-2xl font-bold text-slate-800">{t("reports.title")}</h1>
+        <PageLoading label={t("reports.loading")} />
       </div>
     );
   }
@@ -93,7 +108,7 @@ export default function ReportsPage() {
   if (error && !data) {
     return (
       <div className="animate-in-page space-y-4">
-        <h1 className="text-2xl font-bold text-slate-800">Reports</h1>
+        <h1 className="text-2xl font-bold text-slate-800">{t("reports.title")}</h1>
         <ErrorBanner message={error} onRetry={() => refetch()} />
       </div>
     );
@@ -101,15 +116,14 @@ export default function ReportsPage() {
 
   const sales = data!.sales;
   const ts = data!.timeseries;
-  const restocks = data!.restocks;
-  const salesNums = (ts?.sales ?? []).map((x) => Number(x));
-  const profitNums = (ts?.profit ?? []).map((x) => Number(x));
+  const salesNums = (ts?.sales ?? []).map((s) => parseAmount(s) ?? 0);
+  const profitNums = (ts?.profit ?? []).map((s) => parseAmount(s) ?? 0);
   const useCustomRange = custom && Boolean(from && to);
 
   return (
     <div className="animate-in-page space-y-6">
       {error && <ErrorBanner message={error} onRetry={() => refetch()} />}
-      <h1 className="text-2xl font-bold text-slate-800">Reports</h1>
+      <h1 className="text-2xl font-bold text-slate-800">{t("reports.title")}</h1>
       <div className="flex flex-wrap gap-2">
         {(["daily", "weekly", "monthly"] as const).map((p) => (
           <Button
@@ -122,7 +136,7 @@ export default function ReportsPage() {
               setPeriod(p);
             }}
           >
-            {p}
+            {t(`reports.${p}`)}
           </Button>
         ))}
         <Button
@@ -131,21 +145,17 @@ export default function ReportsPage() {
           className="rounded-xl"
           onClick={() => setCustom(true)}
         >
-          Custom range
+          {t("reports.customRange")}
         </Button>
       </div>
       {custom && (
         <div className="glass rounded-xl p-4 text-sm text-slate-600">
           {!useCustomRange && (
-            <p className="mb-3 text-amber-800">
-              Choose <strong>From</strong> and <strong>To</strong>, then
-              Apply to filter sales and restocks. Charts still follow the
-              period buttons above.
-            </p>
+            <p className="mb-3 text-amber-800">{t("reports.customHint")}</p>
           )}
           <div className="flex flex-wrap items-end gap-3">
             <div>
-              <label className="text-xs text-slate-500">From</label>
+              <label className="text-xs text-slate-500">{t("reports.from")}</label>
               <Input
                 type="date"
                 value={from}
@@ -154,7 +164,7 @@ export default function ReportsPage() {
               />
             </div>
             <div>
-              <label className="text-xs text-slate-500">To</label>
+              <label className="text-xs text-slate-500">{t("reports.to")}</label>
               <Input
                 type="date"
                 value={to}
@@ -168,7 +178,7 @@ export default function ReportsPage() {
               onClick={() => refetch()}
               disabled={!from || !to}
             >
-              Apply
+              {t("reports.apply")}
             </Button>
           </div>
         </div>
@@ -176,7 +186,7 @@ export default function ReportsPage() {
       <div className="grid gap-4 sm:grid-cols-3">
         <div className="glass card-hover rounded-2xl p-5">
           <span className="text-xs font-medium uppercase text-slate-500">
-            Total sales
+            {t("reports.totalSales")}
           </span>
           <p className="mt-2 text-2xl font-bold text-slate-800">
             {money(sales.totalSales)}
@@ -188,7 +198,7 @@ export default function ReportsPage() {
         </div>
         <div className="glass card-hover rounded-2xl p-5">
           <span className="text-xs font-medium uppercase text-slate-500">
-            Total profit
+            {t("reports.totalProfit")}
           </span>
           <p className="mt-2 text-2xl font-bold text-emerald-600">
             {money(sales.totalProfit)}
@@ -196,7 +206,7 @@ export default function ReportsPage() {
         </div>
         <div className="glass card-hover rounded-2xl p-5">
           <span className="text-xs font-medium uppercase text-slate-500">
-            Items sold
+            {t("reports.itemsSold")}
           </span>
           <p className="mt-2 text-2xl font-bold text-slate-800">
             {sales.itemsSold}
@@ -205,38 +215,42 @@ export default function ReportsPage() {
       </div>
       <div className="glass rounded-2xl p-5">
         <h3 className="mb-4 text-sm font-semibold text-slate-700">
-          Revenue ({period})
+          {t("reports.revenue")} ({t(`reports.${period}`)})
         </h3>
         <SparkArea values={salesNums} color="#6366f1" className="h-32 w-full" />
       </div>
       <div className="glass rounded-2xl p-5">
         <h3 className="mb-4 text-sm font-semibold text-slate-700">
-          Profit ({period})
+          {t("reports.profitChart")} ({t(`reports.${period}`)})
         </h3>
         <SparkArea values={profitNums} color="#10b981" className="h-32 w-full" />
       </div>
       <div className="glass overflow-hidden rounded-2xl p-5">
         <h3 className="mb-4 text-sm font-semibold text-slate-700">
-          Restock history
+          {t("reports.restockHistory")}
         </h3>
         {restocks.length === 0 ? (
           <EmptyState
             icon={Package}
-            title="No restock events"
-            description="Restocks appear when you add stock from Inventory → row menu → Restock."
+            title={t("reports.noRestock")}
+            description={t("reports.noRestockDesc")}
           />
+        ) : restocksFiltered.length === 0 ? (
+          <p className="text-center text-sm text-slate-600">
+            {t("dashboard.noSearchResults")}
+          </p>
         ) : (
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Item</TableHead>
-                <TableHead>Qty</TableHead>
-                <TableHead>Date</TableHead>
-                <TableHead>Notes</TableHead>
+                <TableHead>{t("inventory.col.item")}</TableHead>
+                <TableHead>{t("inventory.col.qty")}</TableHead>
+                <TableHead>{t("reports.colDate")}</TableHead>
+                <TableHead>{t("reports.colNotes")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {restocks.map((r) => (
+              {restocksFiltered.map((r) => (
                 <TableRow key={r.id}>
                   <TableCell className="font-medium">{r.item.name}</TableCell>
                   <TableCell>{r.quantity}</TableCell>

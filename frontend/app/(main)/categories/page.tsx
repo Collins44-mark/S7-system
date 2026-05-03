@@ -1,6 +1,8 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
+import { useI18n } from "@/lib/i18n-context";
+import { useSearch } from "@/lib/search-context";
 import { api } from "@/lib/api";
 import { getApiErrorMessage } from "@/lib/api-error";
 import { useAsyncData } from "@/hooks/use-async-data";
@@ -54,6 +56,8 @@ const colors = [
 ];
 
 export default function CategoriesPage() {
+  const { t } = useI18n();
+  const { query } = useSearch();
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [saving, setSaving] = useState(false);
@@ -65,6 +69,13 @@ export default function CategoriesPage() {
   }, []);
 
   const { data: list, error, loading, refetch } = useAsyncData(load, [load]);
+
+  const categories = useMemo(() => list ?? [], [list]);
+  const qCat = query.trim().toLowerCase();
+  const filteredCategories = useMemo(() => {
+    if (!qCat) return categories;
+    return categories.filter((c) => c.name.toLowerCase().includes(qCat));
+  }, [categories, qCat]);
 
   async function add(e: React.FormEvent) {
     e.preventDefault();
@@ -85,7 +96,7 @@ export default function CategoriesPage() {
   if (loading && !list) {
     return (
       <div className="animate-in-page space-y-4">
-        <h1 className="text-2xl font-bold text-slate-800">Categories</h1>
+        <h1 className="text-2xl font-bold text-slate-800">{t("categories.title")}</h1>
         <PageLoading />
       </div>
     );
@@ -94,44 +105,46 @@ export default function CategoriesPage() {
   if (error && !list) {
     return (
       <div className="animate-in-page space-y-4">
-        <h1 className="text-2xl font-bold text-slate-800">Categories</h1>
+        <h1 className="text-2xl font-bold text-slate-800">{t("categories.title")}</h1>
         <ErrorBanner message={error} onRetry={() => refetch()} />
       </div>
     );
   }
 
-  const categories = list ?? [];
-
   return (
     <div className="animate-in-page space-y-6">
       {error && <ErrorBanner message={error} onRetry={() => refetch()} />}
       <div className="flex flex-wrap items-center justify-between gap-4">
-        <h1 className="text-2xl font-bold text-slate-800">Categories</h1>
+        <h1 className="text-2xl font-bold text-slate-800">{t("categories.title")}</h1>
         <Button
           className="btn-primary-gradient rounded-xl text-white"
           onClick={() => setOpen(true)}
         >
           <Plus className="mr-2 h-4 w-4" />
-          Add category
+          {t("categories.add")}
         </Button>
       </div>
       {categories.length === 0 ? (
         <EmptyState
           icon={Grid}
-          title="No categories yet"
-          description="Categories organize your inventory. Add Building, Plumbing, Electrical, or your own labels."
+          title={t("categories.emptyTitle")}
+          description={t("categories.emptyDesc")}
           action={
             <Button
               className="btn-primary-gradient text-white"
               onClick={() => setOpen(true)}
             >
-              Add category
+              {t("categories.add")}
             </Button>
           }
         />
+      ) : filteredCategories.length === 0 ? (
+        <p className="text-center text-sm text-slate-600">
+          {t("dashboard.noSearchResults")}
+        </p>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {categories.map((c, i) => {
+          {filteredCategories.map((c, i) => {
             const Icon = iconFor(c.name);
             const colorClass = colors[i % colors.length];
             return (
@@ -146,7 +159,7 @@ export default function CategoriesPage() {
                 </div>
                 <h3 className="font-semibold text-slate-800">{c.name}</h3>
                 <p className="mt-1 text-xs text-slate-500">
-                  {c.itemCount} items
+                  {c.itemCount} {t("categories.items")}
                 </p>
               </div>
             );
@@ -156,7 +169,7 @@ export default function CategoriesPage() {
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="glass rounded-2xl">
           <DialogHeader>
-            <DialogTitle>New category</DialogTitle>
+            <DialogTitle>{t("categories.newTitle")}</DialogTitle>
           </DialogHeader>
           <form onSubmit={add} className="space-y-4">
             {formError && (
@@ -165,7 +178,7 @@ export default function CategoriesPage() {
               </p>
             )}
             <div>
-              <Label>Name</Label>
+              <Label>{t("categories.name")}</Label>
               <Input
                 value={name}
                 onChange={(e) => setName(e.target.value)}
@@ -178,7 +191,7 @@ export default function CategoriesPage() {
               disabled={saving}
               className="btn-primary-gradient w-full rounded-xl text-white"
             >
-              {saving ? "Saving…" : "Add"}
+              {saving ? t("common.saving") : t("common.add")}
             </Button>
           </form>
         </DialogContent>

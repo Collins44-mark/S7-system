@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useI18n } from "@/lib/i18n-context";
+import type { Locale } from "@/lib/messages";
 import { useRouter } from "next/navigation";
 import { api, isApiUrlMissing } from "@/lib/api";
 import { getApiErrorMessage } from "@/lib/api-error";
@@ -15,6 +17,13 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Box, Eye, EyeOff } from "lucide-react";
 
 type LoginResponse =
@@ -28,6 +37,7 @@ type LoginResponse =
     };
 
 export default function LoginPage() {
+  const { locale, setLocale, t } = useI18n();
   const router = useRouter();
   const setSession = useAuthStore((s) => s.setSession);
   const token = useAuthStore((s) => s.token);
@@ -76,21 +86,37 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-blue-50 via-slate-50 to-indigo-50 p-4">
+    <div className="relative flex min-h-screen items-center justify-center bg-gradient-to-br from-blue-50 via-slate-50 to-indigo-50 p-4">
+      <div className="absolute right-4 top-4">
+        <Select
+          value={locale}
+          onValueChange={(v) => {
+            if (v === "en" || v === "sw") setLocale(v as Locale);
+          }}
+        >
+          <SelectTrigger className="w-40 rounded-xl bg-white/90 text-sm">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="en">{t("common.english")}</SelectItem>
+            <SelectItem value="sw">{t("common.swahili")}</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
       <Card className="glass w-full max-w-md border-white/70 shadow-lg">
         <CardHeader className="space-y-1 text-center">
           <div className="mx-auto mb-2 flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600">
             <Box className="h-5 w-5 text-white" />
           </div>
-          <CardTitle className="text-2xl text-slate-800">Sign in</CardTitle>
+          <CardTitle className="text-2xl text-slate-800">{t("login.title")}</CardTitle>
           <CardDescription className="text-slate-600">
-            Enter your login ID and password.
+            {t("login.subtitle")}
           </CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={onSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="loginId">Login ID</Label>
+              <Label htmlFor="loginId">{t("login.loginId")}</Label>
               <Input
                 id="loginId"
                 required
@@ -101,7 +127,7 @@ export default function LoginPage() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
+              <Label htmlFor="password">{t("login.password")}</Label>
               <div className="relative">
                 <Input
                   id="password"
@@ -153,7 +179,7 @@ export default function LoginPage() {
               disabled={loading || isApiUrlMissing()}
               className="btn-primary-gradient h-11 w-full rounded-xl text-white"
             >
-              {loading ? "Please wait…" : "Sign in"}
+              {loading ? t("login.wait") : t("login.submit")}
             </Button>
           </form>
         </CardContent>

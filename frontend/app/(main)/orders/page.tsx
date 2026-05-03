@@ -1,8 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useI18n } from "@/lib/i18n-context";
+import { useSearch } from "@/lib/search-context";
 import { api } from "@/lib/api";
-import { money, parseAmount, paymentLabel } from "@/lib/format";
+import { money, parseAmount } from "@/lib/format";
 import { useAsyncData } from "@/hooks/use-async-data";
 import { ErrorBanner } from "@/components/error-banner";
 import { PageLoading } from "@/components/page-loading";
@@ -36,12 +38,12 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Plus, ShoppingCart } from "lucide-react";
 
-const PAYMENT = [
-  { v: "CASH", l: "Cash" },
-  { v: "MPESA", l: "M-Pesa" },
-  { v: "AIRTEL_MONEY", l: "Airtel Money" },
-  { v: "TIGO_PESA", l: "Tigo Pesa" },
-  { v: "BANK", l: "Bank" },
+const PAYMENT_CODES = [
+  "CASH",
+  "MPESA",
+  "AIRTEL_MONEY",
+  "TIGO_PESA",
+  "BANK",
 ] as const;
 
 type ItemRow = {
@@ -66,6 +68,8 @@ type OrderRow = {
 };
 
 export default function OrdersPage() {
+  const { t } = useI18n();
+  const { query } = useSearch();
   const [items, setItems] = useState<ItemRow[]>([]);
   const [createOpen, setCreateOpen] = useState(false);
   const [receipt, setReceipt] = useState<ReceiptOrder | null>(null);
@@ -100,11 +104,30 @@ export default function OrdersPage() {
     if (createOpen) loadItems();
   }, [createOpen, loadItems]);
 
+  const orderList = useMemo(() => orders ?? [], [orders]);
+  const q = query.trim().toLowerCase();
+  const orderFiltered = useMemo(() => {
+    if (!q) return orderList;
+    return orderList.filter((o) => {
+      const num = o.orderNumber.toLowerCase();
+      const cust = o.customer.name.toLowerCase();
+      const phone = o.customer.phone.toLowerCase();
+      const method = o.paymentMethod.toLowerCase();
+      return (
+        num.includes(q) ||
+        cust.includes(q) ||
+        phone.includes(q) ||
+        method.includes(q) ||
+        o.status.toLowerCase().includes(q)
+      );
+    });
+  }, [orderList, q]);
+
   if (loading && !orders) {
     return (
       <div className="animate-in-page space-y-4">
-        <h1 className="text-2xl font-bold text-slate-800">Orders</h1>
-        <PageLoading label="Loading orders…" />
+        <h1 className="text-2xl font-bold text-slate-800">{t("orders.title")}</h1>
+        <PageLoading label={t("orders.loading")} />
         <div className="glass overflow-hidden rounded-2xl">
           <TableSkeletonRows rows={6} />
         </div>
@@ -115,25 +138,23 @@ export default function OrdersPage() {
   if (error && !orders) {
     return (
       <div className="animate-in-page space-y-4">
-        <h1 className="text-2xl font-bold text-slate-800">Orders</h1>
+        <h1 className="text-2xl font-bold text-slate-800">{t("orders.title")}</h1>
         <ErrorBanner message={error} onRetry={() => refetch()} />
       </div>
     );
   }
 
-  const orderList = orders ?? [];
-
   return (
     <div className="animate-in-page space-y-6">
       {error && <ErrorBanner message={error} onRetry={() => refetch()} />}
       <div className="flex flex-wrap items-center justify-between gap-4">
-        <h1 className="text-2xl font-bold text-slate-800">Orders</h1>
+        <h1 className="text-2xl font-bold text-slate-800">{t("orders.title")}</h1>
         <Button
           className="btn-primary-gradient rounded-xl text-white"
           onClick={() => setCreateOpen(true)}
         >
           <Plus className="mr-2 h-4 w-4" />
-          New order
+          {t("orders.new")}
         </Button>
       </div>
       <div className="glass overflow-hidden rounded-2xl">
@@ -141,31 +162,31 @@ export default function OrdersPage() {
           <TableHeader>
             <TableRow className="bg-slate-50/50 hover:bg-slate-50/50">
               <TableHead className="text-xs uppercase text-slate-500">
-                Order
+                {t("orders.col.order")}
               </TableHead>
               <TableHead className="text-xs uppercase text-slate-500">
-                Customer
+                {t("orders.col.customer")}
               </TableHead>
               <TableHead className="text-xs uppercase text-slate-500">
-                Total
+                {t("orders.col.total")}
               </TableHead>
               <TableHead className="text-xs uppercase text-slate-500">
-                Paid
+                {t("orders.col.paid")}
               </TableHead>
               <TableHead className="text-xs uppercase text-slate-500">
-                Balance
+                {t("orders.col.balance")}
               </TableHead>
               <TableHead className="text-xs uppercase text-slate-500">
-                Method
+                {t("orders.col.method")}
               </TableHead>
               <TableHead className="text-xs uppercase text-slate-500">
-                Status
+                {t("orders.col.status")}
               </TableHead>
               <TableHead />
             </TableRow>
           </TableHeader>
           <TableBody>
-            {orderList.map((o) => (
+            {orderFiltered.map((o) => (
               <TableRow key={o.id} className="border-slate-100">
                 <TableCell className="font-medium">#{o.orderNumber}</TableCell>
                 <TableCell>{o.customer.name}</TableCell>
@@ -178,7 +199,7 @@ export default function OrdersPage() {
                 >
                   {money(o.balance)}
                 </TableCell>
-                <TableCell>{paymentLabel(o.paymentMethod)}</TableCell>
+                <TableCell>{t(`payment.${o.paymentMethod}`)}</TableCell>
                 <TableCell>
                   <Badge
                     className={
@@ -187,7 +208,9 @@ export default function OrdersPage() {
                         : "bg-amber-100 text-amber-800"
                     }
                   >
-                    {o.status === "COMPLETED" ? "Paid" : "Pending"}
+                    {o.status === "COMPLETED"
+                      ? t("dashboard.paid")
+                      : t("dashboard.pending")}
                   </Badge>
                 </TableCell>
                 <TableCell>
@@ -209,7 +232,7 @@ export default function OrdersPage() {
                       });
                     }}
                   >
-                    Receipt
+                    {t("orders.receipt")}
                   </button>
                 </TableCell>
               </TableRow>
@@ -220,9 +243,14 @@ export default function OrdersPage() {
           <div className="p-4">
             <EmptyState
               icon={ShoppingCart}
-              title="No orders yet"
-              description="When you sell stock, create an order here to deduct inventory and record payment."
+              title={t("orders.emptyTitle")}
+              description={t("orders.emptyDesc")}
             />
+          </div>
+        )}
+        {orderList.length > 0 && orderFiltered.length === 0 && (
+          <div className="p-4 text-center text-sm text-slate-600">
+            {t("dashboard.noSearchResults")}
           </div>
         )}
       </div>
@@ -231,6 +259,7 @@ export default function OrdersPage() {
         open={createOpen}
         onClose={() => setCreateOpen(false)}
         items={items}
+        t={t}
         onCreated={async (created, opts) => {
           setCreateOpen(false);
           await refetch();
@@ -266,12 +295,15 @@ function CreateOrderDialog({
   onClose,
   items,
   onCreated,
+  t,
 }: {
   open: boolean;
   onClose: () => void;
   items: ItemRow[];
   onCreated: (o: OrderRow, opts?: { autoPrint?: boolean }) => void;
+  t: (key: string, vars?: Record<string, string | number>) => string;
 }) {
+  const { query: globalQuery } = useSearch();
   const [step, setStep] = useState(1);
   const [custName, setCustName] = useState("");
   const [custPhone, setCustPhone] = useState("");
@@ -298,9 +330,15 @@ function CreateOrderDialog({
   }, [open]);
 
   const filtered = useMemo(() => {
-    const q = search.toLowerCase();
-    return items.filter((i) => i.name.toLowerCase().includes(q));
-  }, [items, search]);
+    const g = globalQuery.trim().toLowerCase();
+    const s = search.trim().toLowerCase();
+    return items.filter((i) => {
+      const name = i.name.toLowerCase();
+      if (g && !name.includes(g)) return false;
+      if (s && !name.includes(s)) return false;
+      return true;
+    });
+  }, [items, search, globalQuery]);
 
   const total = useMemo(() => {
     let t = 0;
@@ -344,12 +382,12 @@ function CreateOrderDialog({
       .filter(([, q]) => q > 0)
       .map(([itemId, quantity]) => ({ itemId, quantity }));
     if (!orderItems.length) {
-      setError("Add at least one line item");
+      setError(t("orders.addOneLine"));
       return;
     }
     const paid = parseAmount(amountPaid);
     if (paid == null || paid < 0) {
-      setError("Amount paid must be a valid number.");
+      setError(t("orders.amountPaidInvalid"));
       return;
     }
     setSubmitting(true);
@@ -374,7 +412,7 @@ function CreateOrderDialog({
         typeof err.response.data === "object" &&
         "message" in err.response.data
           ? String((err.response.data as { message: unknown }).message)
-          : "Order failed";
+          : t("orders.orderFailed");
       setError(Array.isArray(msg) ? msg.join(", ") : msg);
     } finally {
       setSubmitting(false);
@@ -385,7 +423,7 @@ function CreateOrderDialog({
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
       <DialogContent className="glass max-h-[90vh] max-w-lg overflow-y-auto rounded-2xl">
         <DialogHeader>
-          <DialogTitle>New order</DialogTitle>
+          <DialogTitle>{t("orders.newOrderTitle")}</DialogTitle>
         </DialogHeader>
         <div className="mb-4 flex items-center gap-2">
           {[1, 2, 3].map((n) => (
@@ -410,9 +448,11 @@ function CreateOrderDialog({
         )}
         {step === 1 && (
           <div className="space-y-4">
-            <h3 className="font-semibold text-slate-700">Customer</h3>
+            <h3 className="font-semibold text-slate-700">
+              {t("orders.customerSection")}
+            </h3>
             <div>
-              <Label>Name</Label>
+              <Label>{t("orders.name")}</Label>
               <Input
                 value={custName}
                 onChange={(e) => setCustName(e.target.value)}
@@ -421,7 +461,7 @@ function CreateOrderDialog({
               />
             </div>
             <div>
-              <Label>Phone</Label>
+              <Label>{t("orders.phone")}</Label>
               <Input
                 value={custPhone}
                 onChange={(e) => setCustPhone(e.target.value)}
@@ -435,15 +475,17 @@ function CreateOrderDialog({
               onClick={() => custName && custPhone && setStep(2)}
               disabled={!custName || !custPhone}
             >
-              Next: items
+              {t("orders.nextItems")}
             </Button>
           </div>
         )}
         {step === 2 && (
           <div className="space-y-4">
-            <h3 className="font-semibold text-slate-700">Line items</h3>
+            <h3 className="font-semibold text-slate-700">
+              {t("orders.lineItemsSection")}
+            </h3>
             <Input
-              placeholder="Search items…"
+              placeholder={t("orders.searchItems")}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="rounded-xl"
@@ -459,7 +501,10 @@ function CreateOrderDialog({
                     <div>
                       <p className="text-sm font-medium">{it.name}</p>
                       <p className="text-xs text-slate-500">
-                        {money(it.sellingPrice)} each · {it.quantity} in stock
+                        {t("orders.stockLine", {
+                          price: money(it.sellingPrice),
+                          qty: it.quantity,
+                        })}
                       </p>
                     </div>
                     <div className="flex items-center gap-2">
@@ -489,7 +534,7 @@ function CreateOrderDialog({
               })}
             </div>
             <div className="flex items-center justify-between rounded-xl bg-blue-50 p-3">
-              <span className="text-sm text-slate-600">Total</span>
+              <span className="text-sm text-slate-600">{t("orders.totalLabel")}</span>
               <span className="font-bold text-blue-700">{money(total)}</span>
             </div>
             <Button
@@ -498,21 +543,23 @@ function CreateOrderDialog({
               disabled={total <= 0}
               onClick={() => setStep(3)}
             >
-              Next: checkout
+              {t("orders.nextCheckout")}
             </Button>
           </div>
         )}
         {step === 3 && (
           <form onSubmit={finish} className="space-y-4">
-            <h3 className="font-semibold text-slate-700">Checkout</h3>
+            <h3 className="font-semibold text-slate-700">
+              {t("orders.checkoutSection")}
+            </h3>
             <div className="rounded-xl bg-slate-50 p-4 text-sm">
               <div className="flex justify-between">
-                <span className="text-slate-500">Total</span>
+                <span className="text-slate-500">{t("orders.totalLabel")}</span>
                 <span className="font-bold">{money(total)}</span>
               </div>
             </div>
             <div>
-              <Label>Payment method</Label>
+              <Label>{t("orders.paymentMethod")}</Label>
               <Select
                 value={payMethod}
                 onValueChange={(v) => v && setPayMethod(v)}
@@ -521,16 +568,16 @@ function CreateOrderDialog({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {PAYMENT.map((p) => (
-                    <SelectItem key={p.v} value={p.v}>
-                      {p.l}
+                  {PAYMENT_CODES.map((code) => (
+                    <SelectItem key={code} value={code}>
+                      {t(`payment.${code}`)}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
             <div>
-              <Label>Amount paid</Label>
+              <Label>{t("orders.amountPaid")}</Label>
               <Input
                 type="number"
                 step="0.01"
@@ -542,7 +589,7 @@ function CreateOrderDialog({
               />
             </div>
             <div className="flex items-center justify-between rounded-xl bg-orange-50 p-3">
-              <span className="text-sm text-slate-600">Balance due</span>
+              <span className="text-sm text-slate-600">{t("orders.balanceDue")}</span>
               <span className="font-bold text-orange-600">
                 {money(Math.max(0, -balance))}
               </span>
@@ -554,14 +601,14 @@ function CreateOrderDialog({
                 checked={wantPrintReceipt}
                 onChange={(e) => setWantPrintReceipt(e.target.checked)}
               />
-              Print receipt after sale
+              {t("orders.printReceiptAfter")}
             </label>
             <Button
               type="submit"
               disabled={submitting}
               className="btn-primary-gradient w-full rounded-xl text-white"
             >
-              {submitting ? "Processing…" : "Complete order"}
+              {submitting ? t("orders.processing") : t("orders.completeOrder")}
             </Button>
           </form>
         )}

@@ -1,6 +1,10 @@
+import { HARDWARE_PRINT_TEST_MESSAGE } from "./printer-connection";
+
 /**
  * Opens a narrow POS-style page and triggers the system print dialog.
  * The OS lists printers the machine knows (USB, Bluetooth, network, PDF).
+ * After the print dialog closes, the child posts {@link HARDWARE_PRINT_TEST_MESSAGE} to `opener`.
+ * Window is opened without `noopener` so `opener` exists for `postMessage`.
  */
 export function openPosTestPrint(paperMm: number, businessTitle: string): void {
   const w = Math.min(60, Math.max(50, Math.round(paperMm)));
@@ -11,7 +15,8 @@ export function openPosTestPrint(paperMm: number, businessTitle: string): void {
       .replace(/>/g, "&gt;")
       .replace(/"/g, "&quot;");
   const title = esc(businessTitle.trim() || "Receipt");
-  const win = window.open("", "_blank", "noopener,noreferrer,width=420,height=640");
+  const msgType = esc(HARDWARE_PRINT_TEST_MESSAGE);
+  const win = window.open("", "_blank", "width=420,height=640");
   if (!win) return;
   win.document.open();
   win.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"/><title>Test</title>
@@ -29,7 +34,21 @@ export function openPosTestPrint(paperMm: number, businessTitle: string): void {
   <div class="line"><span>Sample line ×1</span><span>0.00</span></div>
   <div class="line tot"><span>Total</span><span>0.00</span></div>
 </div>
-<script>addEventListener("load",function(){setTimeout(function(){print()},200)});<\/script>
+<script>
+(function(){
+  var T="${msgType}";
+  function notify(){
+    try {
+      if (window.opener && !window.opener.closed) {
+        window.opener.postMessage({ type: T }, "*");
+      }
+    } catch (e) {}
+  }
+  addEventListener("load", function(){
+    setTimeout(function(){ print(); }, 200);
+  });
+  addEventListener("afterprint", notify);
+})();<\/script>
 </body></html>`);
   win.document.close();
 }
