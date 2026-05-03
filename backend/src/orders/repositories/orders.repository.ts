@@ -122,11 +122,19 @@ export class OrdersRepository {
         ? OrderStatus.COMPLETED
         : OrderStatus.PENDING;
 
+      const bizSeq = await tx.business.update({
+        where: { id: businessId },
+        data: { lastReceiptSequence: { increment: 1 } },
+        select: { lastReceiptSequence: true },
+      });
+      const receiptNumber = `RCT-${String(bizSeq.lastReceiptSequence).padStart(6, '0')}`;
+
       const order = await tx.order.create({
         data: {
           businessId,
           customerId: customer.id,
           orderNumber,
+          receiptNumber,
           totalAmount: total,
           amountPaid,
           balance,

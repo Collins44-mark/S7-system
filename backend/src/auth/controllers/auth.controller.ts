@@ -2,6 +2,7 @@ import { Body, Controller, Get, Patch, Post, UseGuards } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { AuthService } from '../services/auth.service';
 import { LoginDto } from '../dto/login.dto';
+import { UpdateMeDto } from '../dto/update-me.dto';
 import {
   CurrentUser,
   type AuthPrincipal,
@@ -28,13 +29,7 @@ export class AuthController {
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles('BUSINESS')
   @Patch('me')
-  updateMe(
-    @CurrentUser() user: AuthPrincipal,
-    @Body()
-    body: {
-      name?: string;
-    },
-  ) {
+  updateMe(@CurrentUser() user: AuthPrincipal, @Body() body: UpdateMeDto) {
     return this.auth.updateProfile(user, body);
   }
 }

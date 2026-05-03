@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { api } from "@/lib/api";
-import { money } from "@/lib/format";
+import { money, parseAmount } from "@/lib/format";
 import { useAsyncData } from "@/hooks/use-async-data";
 import { ErrorBanner } from "@/components/error-banner";
 import { PageLoading } from "@/components/page-loading";
@@ -54,6 +54,25 @@ type Item = {
 
 type InventoryPayload = { items: Item[]; categories: Category[] };
 
+function normalizeItemFromApi(raw: unknown): Item {
+  const r = raw as Record<string, unknown>;
+  const cat = r.category as Record<string, unknown> | undefined;
+  const buy = parseAmount(r.buyingPrice);
+  const sell = parseAmount(r.sellingPrice);
+  return {
+    id: String(r.id ?? ""),
+    name: String(r.name ?? ""),
+    buyingPrice: buy != null ? buy.toFixed(2) : "0.00",
+    sellingPrice: sell != null ? sell.toFixed(2) : "0.00",
+    quantity: Number(r.quantity) || 0,
+    lowStockThreshold: Number(r.lowStockThreshold) || 0,
+    category: {
+      id: String(cat?.id ?? ""),
+      name: String(cat?.name ?? ""),
+    },
+  };
+}
+
 /** GET /categories — tolerate extra fields; always `{ id, name }`. */
 function normalizeCategories(raw: unknown): Category[] {
   if (!Array.isArray(raw)) return [];
@@ -82,7 +101,7 @@ export default function InventoryPage() {
       api.get<Category[]>("/categories"),
     ]);
     return {
-      items: itemsRes.data,
+      items: (itemsRes.data as unknown[]).map((row) => normalizeItemFromApi(row)),
       categories: normalizeCategories(categoriesRes.data),
     };
   }, []);
@@ -172,8 +191,10 @@ export default function InventoryPage() {
           <TableBody>
             {items.map((item) => {
               const low = item.quantity <= item.lowStockThreshold;
+              const buy = parseAmount(item.buyingPrice);
+              const sell = parseAmount(item.sellingPrice);
               const profit =
-                Number(item.sellingPrice) - Number(item.buyingPrice);
+                buy != null && sell != null ? sell - buy : null;
               return (
                 <TableRow
                   key={item.id}
@@ -185,7 +206,7 @@ export default function InventoryPage() {
                   <TableCell>{money(item.sellingPrice)}</TableCell>
                   <TableCell>{item.quantity}</TableCell>
                   <TableCell className="text-emerald-600">
-                    {money(profit)}
+                    {profit != null ? money(profit) : "—"}
                   </TableCell>
                   <TableCell>
                     <span

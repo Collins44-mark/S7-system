@@ -4,6 +4,7 @@ import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { BusinessesRepository } from '../repositories/businesses.repository';
 import { LoginDto } from '../dto/login.dto';
+import { UpdateMeDto } from '../dto/update-me.dto';
 import type { AuthPrincipal } from '../../common/decorators/current-user.decorator';
 import { normalizeCredential } from '../utils/env-credentials';
 
@@ -91,15 +92,27 @@ export class AuthService {
     return this.businesses.findPublicProfile(user.sub);
   }
 
-  async updateProfile(
-    user: AuthPrincipal,
-    body: {
-      name?: string;
-    },
-  ) {
+  async updateProfile(user: AuthPrincipal, body: UpdateMeDto) {
     if (user.role !== 'BUSINESS') {
       throw new UnauthorizedException();
     }
-    return this.businesses.updatePublicProfile(user.sub, body);
+    const data: {
+      name?: string;
+      receiptPaperWidthMm?: number;
+      printReceiptAfterSale?: boolean;
+      receiptPrinterAddress?: string | null;
+    } = {};
+    if (body.name !== undefined) data.name = body.name;
+    if (body.receiptPaperWidthMm !== undefined) {
+      data.receiptPaperWidthMm = body.receiptPaperWidthMm;
+    }
+    if (body.printReceiptAfterSale !== undefined) {
+      data.printReceiptAfterSale = body.printReceiptAfterSale;
+    }
+    if (body.receiptPrinterAddress !== undefined) {
+      const v = body.receiptPrinterAddress?.trim();
+      data.receiptPrinterAddress = v ? v : null;
+    }
+    return this.businesses.updatePublicProfile(user.sub, data);
   }
 }

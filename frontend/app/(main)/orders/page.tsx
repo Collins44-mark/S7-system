@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { api } from "@/lib/api";
-import { money, paymentLabel } from "@/lib/format";
+import { money, parseAmount, paymentLabel } from "@/lib/format";
 import { useAsyncData } from "@/hooks/use-async-data";
 import { ErrorBanner } from "@/components/error-banner";
 import { PageLoading } from "@/components/page-loading";
@@ -54,6 +54,7 @@ type ItemRow = {
 type OrderRow = {
   id: string;
   orderNumber: string;
+  receiptNumber?: string | null;
   totalAmount: string;
   amountPaid: string;
   balance: string;
@@ -68,6 +69,7 @@ export default function OrdersPage() {
   const [items, setItems] = useState<ItemRow[]>([]);
   const [createOpen, setCreateOpen] = useState(false);
   const [receipt, setReceipt] = useState<ReceiptOrder | null>(null);
+  const [receiptAutoPrint, setReceiptAutoPrint] = useState(false);
 
   const loadOrders = useCallback(async () => {
     const { data } = await api.get<OrderRow[]>("/orders");
@@ -82,12 +84,15 @@ export default function OrdersPage() {
   const loadItems = useCallback(async () => {
     const { data } = await api.get<ItemRow[]>("/items");
     setItems(
-      data.map((i) => ({
-        id: i.id,
-        name: i.name,
-        sellingPrice: i.sellingPrice,
-        quantity: i.quantity,
-      })),
+      data.map((i) => {
+        const sp = parseAmount(i.sellingPrice);
+        return {
+          id: i.id,
+          name: i.name,
+          sellingPrice: sp != null ? sp.toFixed(2) : "0.00",
+          quantity: i.quantity,
+        };
+      }),
     );
   }, []);
 
@@ -189,9 +194,11 @@ export default function OrdersPage() {
                   <button
                     type="button"
                     className="text-xs text-blue-600 hover:underline"
-                    onClick={() =>
+                    onClick={() => {
+                      setReceiptAutoPrint(false);
                       setReceipt({
                         orderNumber: o.orderNumber,
+                        receiptNumber: o.receiptNumber,
                         createdAt: o.createdAt,
                         totalAmount: o.totalAmount,
                         amountPaid: o.amountPaid,
@@ -199,8 +206,8 @@ export default function OrdersPage() {
                         paymentMethod: o.paymentMethod,
                         customer: o.customer,
                         orderItems: o.orderItems,
-                      })
-                    }
+                      });
+                    }}
                   >
                     Receipt
                   </button>
@@ -224,11 +231,13 @@ export default function OrdersPage() {
         open={createOpen}
         onClose={() => setCreateOpen(false)}
         items={items}
-        onCreated={async (created) => {
+        onCreated={async (created, opts) => {
           setCreateOpen(false);
           await refetch();
+          setReceiptAutoPrint(Boolean(opts?.autoPrint));
           setReceipt({
             orderNumber: created.orderNumber,
+            receiptNumber: created.receiptNumber,
             createdAt: created.createdAt,
             totalAmount: created.totalAmount,
             amountPaid: created.amountPaid,
@@ -242,7 +251,11 @@ export default function OrdersPage() {
       <ReceiptDialog
         order={receipt}
         open={!!receipt}
-        onClose={() => setReceipt(null)}
+        autoPrint={receiptAutoPrint}
+        onClose={() => {
+          setReceipt(null);
+          setReceiptAutoPrint(false);
+        }}
       />
     </div>
   );
@@ -257,7 +270,7 @@ function CreateOrderDialog({
   open: boolean;
   onClose: () => void;
   items: ItemRow[];
-  onCreated: (o: OrderRow) => void;
+  onCreated: (o: OrderRow, opts?: { autoPrint?: boolean }) => void;
 }) {
   const [step, setStep] = useState(1);
   const [custName, setCustName] = useState("");
@@ -266,6 +279,7 @@ function CreateOrderDialog({
   const [search, setSearch] = useState("");
   const [payMethod, setPayMethod] = useState<string>("CASH");
   const [amountPaid, setAmountPaid] = useState("");
+  const [wantPrintReceipt, setWantPrintReceipt] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -278,6 +292,7 @@ function CreateOrderDialog({
       setSearch("");
       setPayMethod("CASH");
       setAmountPaid("");
+      setWantPrintReceipt(true);
       setError(null);
     }
   }, [open]);
@@ -292,7 +307,10 @@ function CreateOrderDialog({
     for (const [id, q] of Object.entries(lines)) {
       if (q <= 0) continue;
       const it = items.find((x) => x.id === id);
-      if (it) t += Number(it.sellingPrice) * q;
+      if (it) {
+        const unit = parseAmount(it.sellingPrice) ?? 0;
+        t += unit * q;
+      }
     }
     return t;
   }, [lines, items]);
@@ -316,7 +334,8 @@ function CreateOrderDialog({
     });
   }
 
-  const balance = Number(amountPaid || 0) - total;
+  const paidNum = parseAmount(amountPaid) ?? 0;
+  const balance = paidNum - total;
 
   async function finish(e: React.FormEvent) {
     e.preventDefault();
@@ -328,6 +347,11 @@ function CreateOrderDialog({
       setError("Add at least one line item");
       return;
     }
+    const paid = parseAmount(amountPaid);
+    if (paid == null || paid < 0) {
+      setError("Amount paid must be a valid number.");
+      return;
+    }
     setSubmitting(true);
     try {
       const { data } = await api.post<OrderRow>("/orders", {
@@ -335,9 +359,9 @@ function CreateOrderDialog({
         customerPhone: custPhone,
         items: orderItems,
         paymentMethod: payMethod,
-        amountPaid: Number(amountPaid),
+        amountPaid: paid,
       });
-      onCreated(data);
+      onCreated(data, { autoPrint: wantPrintReceipt });
     } catch (err: unknown) {
       const msg =
         err &&
@@ -523,6 +547,15 @@ function CreateOrderDialog({
                 {money(Math.max(0, -balance))}
               </span>
             </div>
+            <label className="flex cursor-pointer items-center gap-2 text-sm text-slate-700">
+              <input
+                type="checkbox"
+                className="h-4 w-4 rounded border-slate-300"
+                checked={wantPrintReceipt}
+                onChange={(e) => setWantPrintReceipt(e.target.checked)}
+              />
+              Offer customer receipt (browser print — 60mm layout in Settings)
+            </label>
             <Button
               type="submit"
               disabled={submitting}

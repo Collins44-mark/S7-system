@@ -35,6 +35,14 @@ model Business {
   uniqueCode   String   @unique
   passwordHash String
   isActive     Boolean  @default(true)
+  /** Monotonic counter for customer receipts (RCT-000001). */
+  lastReceiptSequence Int      @default(0)
+  /** Thermal / browser print width (mm), e.g. 58 or 60. */
+  receiptPaperWidthMm  Int      @default(60)
+  /** If true, browser print dialog opens after a completed sale (when receipt is shown). */
+  printReceiptAfterSale Boolean @default(true)
+  /** Optional note: e.g. printer IP:9100 for staff reference (browser cannot open raw TCP). */
+  receiptPrinterAddress String?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -110,6 +118,8 @@ model Customer {
 model Order {
   id            String        @id @default(cuid())
   orderNumber   String        @unique
+  /** Sequential customer receipt id per business, e.g. RCT-000001 */
+  receiptNumber String?
   customerId    String
   customer      Customer      @relation(fields: [customerId], references: [id], onDelete: Restrict)
   businessId    String

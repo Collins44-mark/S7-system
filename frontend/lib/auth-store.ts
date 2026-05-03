@@ -13,6 +13,10 @@ export type AuthSession =
       businessName: string;
       /** Internal UUID */
       id: string;
+      /** From GET/PATCH /auth/me — thermal receipt width (mm). */
+      receiptPaperWidthMm?: number;
+      /** From GET/PATCH /auth/me — open print dialog after new sale. */
+      printReceiptAfterSale?: boolean;
     };
 
 type AuthState = {

@@ -6,6 +6,9 @@ const businessPublicSelect = {
   name: true,
   uniqueCode: true,
   createdAt: true,
+  receiptPaperWidthMm: true,
+  printReceiptAfterSale: true,
+  receiptPrinterAddress: true,
 } as const;
 
 @Injectable()
@@ -48,6 +51,9 @@ export class BusinessesRepository {
     businessPk: string,
     data: {
       name?: string;
+      receiptPaperWidthMm?: number;
+      printReceiptAfterSale?: boolean;
+      receiptPrinterAddress?: string | null;
     },
   ) {
     return this.prisma.business.update({
