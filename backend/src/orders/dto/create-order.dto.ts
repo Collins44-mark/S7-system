@@ -3,9 +3,9 @@ import {
   ArrayMinSize,
   IsArray,
   IsIn,
+  IsNotEmpty,
   IsNumber,
   IsString,
-  IsUUID,
   Min,
   MinLength,
   ValidateNested,
@@ -21,7 +21,9 @@ const PAYMENT_VALUES: PaymentMethod[] = [
 ];
 
 export class OrderLineDto {
-  @IsUUID()
+  /** Item PK is a Prisma `cuid()`, not a UUID */
+  @IsString()
+  @IsNotEmpty()
   itemId: string;
 
   @Type(() => Number)
