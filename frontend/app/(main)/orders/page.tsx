@@ -554,7 +554,7 @@ function CreateOrderDialog({
                 checked={wantPrintReceipt}
                 onChange={(e) => setWantPrintReceipt(e.target.checked)}
               />
-              Offer customer receipt (browser print — 60mm layout in Settings)
+              Print receipt after sale
             </label>
             <Button
               type="submit"

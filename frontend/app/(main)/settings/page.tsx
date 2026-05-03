@@ -5,6 +5,7 @@ import { api } from "@/lib/api";
 import { getApiErrorMessage } from "@/lib/api-error";
 import { useAsyncData } from "@/hooks/use-async-data";
 import { useAuthStore } from "@/lib/auth-store";
+import { openPosTestPrint } from "@/lib/pos-test-print";
 import { ErrorBanner } from "@/components/error-banner";
 import { PageLoading } from "@/components/page-loading";
 import { Button } from "@/components/ui/button";
@@ -18,7 +19,6 @@ type Me = {
   createdAt: string;
   receiptPaperWidthMm: number;
   printReceiptAfterSale: boolean;
-  receiptPrinterAddress: string | null;
 };
 
 export default function SettingsPage() {
@@ -27,9 +27,8 @@ export default function SettingsPage() {
   const session = useAuthStore((s) => s.session);
 
   const [name, setName] = useState("");
-  const [paperMm, setPaperMm] = useState("60");
+  const [paperMm, setPaperMm] = useState("58");
   const [printAfterSale, setPrintAfterSale] = useState(true);
-  const [printerNote, setPrinterNote] = useState("");
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -44,9 +43,9 @@ export default function SettingsPage() {
   useEffect(() => {
     if (!profile) return;
     setName(profile.name ?? "");
-    setPaperMm(String(profile.receiptPaperWidthMm ?? 60));
+    const w = profile.receiptPaperWidthMm ?? 58;
+    setPaperMm(String(Math.min(60, Math.max(50, w))));
     setPrintAfterSale(profile.printReceiptAfterSale ?? true);
-    setPrinterNote(profile.receiptPrinterAddress ?? "");
   }, [profile]);
 
   useEffect(() => {
@@ -56,7 +55,7 @@ export default function SettingsPage() {
     setSession(token, {
       ...s,
       businessName: profile.name,
-      receiptPaperWidthMm: profile.receiptPaperWidthMm,
+      receiptPaperWidthMm: Math.min(60, Math.max(50, profile.receiptPaperWidthMm ?? 58)),
       printReceiptAfterSale: profile.printReceiptAfterSale,
     });
   }, [profile, token, setSession]);
@@ -68,8 +67,8 @@ export default function SettingsPage() {
     setMsg(null);
     setSaveError(null);
     const width = parseInt(paperMm, 10);
-    if (Number.isNaN(width) || width < 58 || width > 80) {
-      setSaveError("Paper width must be between 58 and 80 mm.");
+    if (Number.isNaN(width) || width < 50 || width > 60) {
+      setSaveError("Receipt width must be between 50 and 60 mm.");
       setSaving(false);
       return;
     }
@@ -78,14 +77,13 @@ export default function SettingsPage() {
         name: name || undefined,
         receiptPaperWidthMm: width,
         printReceiptAfterSale: printAfterSale,
-        receiptPrinterAddress: printerNote.trim() || null,
       });
       setSession(token, {
         role: "BUSINESS",
         businessId: data.uniqueCode,
         businessName: data.name,
         id: data.id,
-        receiptPaperWidthMm: data.receiptPaperWidthMm,
+        receiptPaperWidthMm: Math.min(60, Math.max(50, data.receiptPaperWidthMm)),
         printReceiptAfterSale: data.printReceiptAfterSale,
       });
       setMsg("Saved");
@@ -114,6 +112,8 @@ export default function SettingsPage() {
       </div>
     );
   }
+
+  const testTitle = (name || profile?.name || "Business").trim();
 
   return (
     <div className="animate-in-page max-w-2xl space-y-6">
@@ -147,28 +147,19 @@ export default function SettingsPage() {
           </div>
 
           <div className="border-t border-slate-200 pt-6">
-            <h3 className="mb-2 font-semibold text-slate-700">Receipt &amp; thermal printer</h3>
-            <p className="mb-4 text-sm text-slate-600">
-              Receipts use your <strong>business name</strong> and a sequential{" "}
-              <strong className="font-mono">RCT-000001</strong> number assigned at checkout. Printing
-              uses the browser&apos;s print dialog so you can send the job to a{" "}
-              <strong>58–60&nbsp;mm</strong> thermal driver (USB, Bluetooth, or shared queue). Web apps
-              cannot open a raw TCP connection to a printer IP; note the address below for your staff or
-              a desktop print agent if you use one.
-            </p>
+            <h3 className="mb-4 font-semibold text-slate-700">POS receipt</h3>
             <div className="space-y-4">
               <div>
-                <Label htmlFor="paper">Receipt paper width (mm)</Label>
+                <Label htmlFor="paper">Receipt width (mm)</Label>
                 <Input
                   id="paper"
                   type="number"
-                  min={58}
-                  max={80}
+                  min={50}
+                  max={60}
                   value={paperMm}
                   onChange={(e) => setPaperMm(e.target.value)}
                   className="mt-1 max-w-[12rem] rounded-xl"
                 />
-                <p className="mt-1 text-xs text-slate-500">Typical thermal rolls: 58 or 60 mm.</p>
               </div>
               <label className="flex cursor-pointer items-center gap-2 text-sm text-slate-700">
                 <input
@@ -177,21 +168,18 @@ export default function SettingsPage() {
                   checked={printAfterSale}
                   onChange={(e) => setPrintAfterSale(e.target.checked)}
                 />
-                Allow automatic print dialog after a new sale (when checkout enables receipt)
+                Print receipt after sale
               </label>
-              <div>
-                <Label htmlFor="printerNote">Printer / queue note (optional)</Label>
-                <Input
-                  id="printerNote"
-                  value={printerNote}
-                  onChange={(e) => setPrinterNote(e.target.value)}
-                  placeholder="e.g. Star TSP143 · 192.168.1.50:9100"
-                  className="mt-1 rounded-xl"
-                />
-                <p className="mt-1 text-xs text-slate-500">
-                  For your records only; choose the actual printer in the system print dialog.
-                </p>
-              </div>
+              <Button
+                type="button"
+                variant="secondary"
+                className="rounded-xl"
+                onClick={() =>
+                  openPosTestPrint(parseInt(paperMm, 10) || 58, testTitle)
+                }
+              >
+                Print test receipt
+              </Button>
             </div>
           </div>
 

@@ -100,7 +100,6 @@ export class AuthService {
       name?: string;
       receiptPaperWidthMm?: number;
       printReceiptAfterSale?: boolean;
-      receiptPrinterAddress?: string | null;
     } = {};
     if (body.name !== undefined) data.name = body.name;
     if (body.receiptPaperWidthMm !== undefined) {
@@ -108,10 +107,6 @@ export class AuthService {
     }
     if (body.printReceiptAfterSale !== undefined) {
       data.printReceiptAfterSale = body.printReceiptAfterSale;
-    }
-    if (body.receiptPrinterAddress !== undefined) {
-      const v = body.receiptPrinterAddress?.trim();
-      data.receiptPrinterAddress = v ? v : null;
     }
     return this.businesses.updatePublicProfile(user.sub, data);
   }

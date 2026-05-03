@@ -45,10 +45,11 @@ export function ReceiptDialog({
     session?.role === "BUSINESS" ? session.businessName : "Receipt";
 
   const paperMm = useMemo(() => {
+    let w = 58;
     if (session?.role === "BUSINESS" && session.receiptPaperWidthMm) {
-      return session.receiptPaperWidthMm;
+      w = session.receiptPaperWidthMm;
     }
-    return 60;
+    return Math.min(60, Math.max(50, w));
   }, [session]);
 
   useEffect(() => {

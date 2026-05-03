@@ -37,8 +37,8 @@ model Business {
   isActive     Boolean  @default(true)
   /** Monotonic counter for customer receipts (RCT-000001). */
   lastReceiptSequence Int      @default(0)
-  /** Thermal / browser print width (mm), e.g. 58 or 60. */
-  receiptPaperWidthMm  Int      @default(60)
+  /** POS receipt width (mm), 50–60 typical for thermal rolls. */
+  receiptPaperWidthMm  Int      @default(58)
   /** If true, browser print dialog opens after a completed sale (when receipt is shown). */
   printReceiptAfterSale Boolean @default(true)
   /** Optional note: e.g. printer IP:9100 for staff reference (browser cannot open raw TCP). */
