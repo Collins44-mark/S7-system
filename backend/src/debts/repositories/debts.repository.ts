@@ -3,9 +3,9 @@ import { PrismaService } from '../../prisma/prisma.service';
 import {
   DebtStatus,
   OrderStatus,
+  Prisma,
   type PaymentMethod as PM,
-} from '../../../generated/prisma/enums';
-import { Prisma } from '../../../generated/prisma/client';
+} from '../../prisma/generated-imports';
 import type { PayDebtDto } from '../dto/pay-debt.dto';
 
 @Injectable()

@@ -1,6 +1,8 @@
 # Hardware Sales & Inventory (SaaS)
 
-Production-oriented monorepo: **Next.js (App Router)** frontend and **NestJS + Prisma + PostgreSQL** backend. Features include auth, inventory with restock history, categories, multi-step checkout orders, automatic stock reduction, customer debt tracking, receipts, and reports.
+Production-oriented monorepo: **Next.js (App Router)** frontend and **NestJS + Prisma + PostgreSQL** backend. Features include unified auth (super admin + business tenants), inventory with restock history, categories, checkout orders, customer debt tracking, receipts, and reports.
+
+**Production checklist:** see [DEPLOYMENT.md](./DEPLOYMENT.md).
 
 ## Structure
 
@@ -12,55 +14,52 @@ Production-oriented monorepo: **Next.js (App Router)** frontend and **NestJS + P
 - Node.js 20+
 - PostgreSQL database (local, [Supabase](https://supabase.com), or [Render](https://render.com))
 
-## Backend setup
+## Backend setup (development)
 
 ```bash
 cd backend
 cp .env.example .env
-# Edit .env: DATABASE_URL, JWT_SECRET, CORS_ORIGIN
+# Edit .env: DATABASE_URL, JWT_SECRET, SUPER_ADMIN_*, CORS_ORIGIN, PORT (default 5000)
 npm install
 npx prisma generate
+# First time or schema changes in dev (optional; production uses migrate deploy)
 npx prisma db push
+# or: npx prisma migrate dev
 npm run start:dev
 ```
 
-API listens on `http://localhost:3001` with routes prefixed by **`/api`** (e.g. `POST http://localhost:3001/api/auth/login`).
+API listens on `http://localhost:5000` (or `PORT`) with routes under **`/api`**.
 
-**Render / CI:** the Prisma client is generated into `backend/generated/prisma` (gitignored). Your build command should include `npx prisma generate` before `nest build`.
+**Production database:** `npx prisma migrate deploy` (see [DEPLOYMENT.md](./DEPLOYMENT.md)).
 
-### Useful scripts
-
-- `npm run prisma:push` — apply schema to the database (dev)
-- `npm run prisma:migrate` — create/apply migrations (`prisma migrate dev`)
-- `npm run prisma:generate` — regenerate Prisma Client
-
-## Frontend setup
+## Frontend setup (development)
 
 ```bash
 cd frontend
 cp .env.example .env.local
-# Set NEXT_PUBLIC_API_URL to your API, e.g. http://localhost:3001/api
+# NEXT_PUBLIC_API_URL = API origin only, e.g. http://localhost:5000 (no /api)
 npm install
 npm run dev
 ```
 
-Open `http://localhost:3000`. Register a user, then use the sidebar for Dashboard, Inventory, Categories, Orders, Customers (debts), Reports, and Settings.
+Open `http://localhost:3000`. Sign in with super admin or a business **Login ID** (e.g. `S7-0001`) created from the admin dashboard.
 
-## Deployment
+## Deployment (summary)
 
-| Component  | Suggested host | Notes |
+| Component | Suggested host | Notes |
 |-----------|----------------|--------|
-| Frontend  | Vercel         | Set `NEXT_PUBLIC_API_URL` to your Render API URL + `/api` |
-| Backend   | Render         | Set `DATABASE_URL`, `JWT_SECRET`, `CORS_ORIGIN` (your Vercel domain) |
-| Database  | Supabase / Render Postgres | Use connection string in `DATABASE_URL` |
+| Frontend | Vercel | Set `NEXT_PUBLIC_API_URL` to your **API origin** (scheme + host + port); `/api` is appended in code |
+| Backend | Render / Railway / VPS | Set `DATABASE_URL`, `JWT_SECRET`, `SUPER_ADMIN_*`, `CORS_ORIGIN` (your Vercel URL), `PORT` |
+| Database | Supabase / Neon / managed Postgres | Connection string in `DATABASE_URL` |
 
-Ensure `CORS_ORIGIN` on the backend includes your exact Vercel origin (e.g. `https://your-app.vercel.app`).
+Full steps: [DEPLOYMENT.md](./DEPLOYMENT.md).
 
 ## API overview
 
 | Area | Routes |
 |------|--------|
-| Auth | `POST /api/auth/register`, `POST /api/auth/login`, `GET/PATCH /api/auth/me` |
+| Auth | `POST /api/auth/login`, `GET/PATCH /api/auth/me` |
+| Admin | `GET/POST /api/admin/businesses`, `PATCH /api/admin/businesses/:id` |
 | Categories | `GET/POST /api/categories`, `PATCH/DELETE /api/categories/:id` |
 | Items | `GET/POST /api/items`, `PATCH/DELETE /api/items/:id`, `POST /api/items/:id/restock` |
 | Orders | `GET /api/orders`, `GET /api/orders/:id`, `POST /api/orders` |
@@ -68,7 +67,7 @@ Ensure `CORS_ORIGIN` on the backend includes your exact Vercel origin (e.g. `htt
 | Debts | `GET /api/debts`, `POST /api/debts/:id/pay` |
 | Reports | `GET /api/reports/dashboard`, `GET /api/reports/sales`, `GET /api/reports/timeseries`, `GET /api/reports/restocks` |
 
-All routes except `auth/register` and `auth/login` require `Authorization: Bearer <JWT>`.
+All routes except `auth/login` require `Authorization: Bearer <JWT>`.
 
 ## Business rules (backend)
 

@@ -1,7 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
-import { OrderStatus } from '../../../generated/prisma/enums';
-import { Prisma } from '../../../generated/prisma/client';
+import { OrderStatus, Prisma, PrismaClient } from '../../prisma/generated-imports';
 import type { ReportPeriod } from '../types/report-period';
 
 @Injectable()
@@ -104,7 +103,7 @@ export class ReportsRepository {
     if (from && to) {
       where.createdAt = { gte: from, lte: to };
     }
-    return this.prisma.restockLog.findMany({
+    return (this.prisma as PrismaClient).restockLog.findMany({
       where,
       orderBy: { createdAt: 'desc' },
       include: { item: true },

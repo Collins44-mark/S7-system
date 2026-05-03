@@ -1,8 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { ReportsRepository } from '../repositories/reports.repository';
 import type { BusinessPrincipal } from '../../common/decorators/current-user.decorator';
-import { OrderStatus } from '../../../generated/prisma/enums';
-import { Prisma } from '../../../generated/prisma/client';
+import { OrderStatus, Prisma } from '../../prisma/generated-imports';
 import type { ReportPeriod } from '../types/report-period';
 
 export type { ReportPeriod } from '../types/report-period';
@@ -91,7 +90,7 @@ export class ReportsService {
       start,
       end,
     );
-    const ids = orders.map((o) => o.id);
+    const ids = orders.map((o: { id: string }) => o.id);
     const profitByOrder = new Map<string, Prisma.Decimal>();
     if (ids.length) {
       const groups = await this.reports.groupProfitByOrder(ids);

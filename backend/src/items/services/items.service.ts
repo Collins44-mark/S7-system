@@ -7,7 +7,7 @@ import { ItemsRepository } from '../repositories/items.repository';
 import type { BusinessPrincipal } from '../../common/decorators/current-user.decorator';
 import { CreateItemDto } from '../dto/create-item.dto';
 import { UpdateItemDto } from '../dto/update-item.dto';
-import { Prisma } from '../../../generated/prisma/client';
+import { Prisma } from '../../prisma/generated-imports';
 
 @Injectable()
 export class ItemsService {

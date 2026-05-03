@@ -4,8 +4,8 @@ import {
   DebtStatus,
   OrderStatus,
   type PaymentMethod as PM,
-} from '../../../generated/prisma/enums';
-import { Prisma } from '../../../generated/prisma/client';
+  Prisma,
+} from '../../prisma/generated-imports';
 import { CheckoutError } from '../../core/errors/checkout.errors';
 import type { CreateOrderDto } from '../dto/create-order.dto';
 

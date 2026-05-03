@@ -1,6 +1,6 @@
 import { Type } from 'class-transformer';
 import { IsIn, IsNumber, IsOptional, Min } from 'class-validator';
-import type { PaymentMethod } from '../../../generated/prisma/enums';
+import type { PaymentMethod } from '../../prisma/generated-imports';
 
 const PAYMENT_VALUES: PaymentMethod[] = [
   'CASH',
