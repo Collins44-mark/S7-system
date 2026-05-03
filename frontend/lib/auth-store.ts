@@ -2,7 +2,7 @@
 
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import { setAuthToken } from "./api";
+import { AUTH_PERSIST_STORAGE_KEY, setAuthToken } from "./api";
 
 export type AuthSession =
   | { role: "SUPER_ADMIN" }
@@ -41,7 +41,7 @@ export const useAuthStore = create<AuthState>()(
       },
     }),
     {
-      name: "hardware-auth-v2",
+      name: AUTH_PERSIST_STORAGE_KEY,
       partialize: (s) => ({ token: s.token, session: s.session }),
       onRehydrateStorage: () => (state) => {
         if (state?.token) setAuthToken(state.token);
