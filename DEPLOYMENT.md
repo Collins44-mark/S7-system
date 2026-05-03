@@ -69,6 +69,27 @@ On the login page, the small **API:** line shows which URL the browser will call
 
 Do **not** use `prisma db push` on production unless you intentionally manage schema outside migrations.
 
+### Render.com (Web Service)
+
+Point the service at the **`backend/`** directory (or run commands from there).
+
+| Setting | Example |
+|--------|---------|
+| **Build command** | `npm ci && npm run build` |
+| **Start command** | `npm run start:prod:with-migrate` |
+
+`start:prod:with-migrate` runs **`prisma migrate deploy`** before starting Nest, so tables like **`Business`** are created on first boot. Ensure **`DATABASE_URL`** is set to your Render Postgres (Internal or External URL).
+
+If you prefer not to migrate on every boot, use **`npm run start:prod`** after running **`npx prisma migrate deploy`** once (e.g. Render Shell or local CLI against the same `DATABASE_URL`).
+
+### Error: `The table public.Business does not exist`
+
+The database is empty — migrations were never applied.
+
+1. Set **`DATABASE_URL`** on the host to your Postgres.
+2. Run **`npx prisma migrate deploy`** from **`backend/`** (same connection string the app uses).
+3. Or switch Render **Start command** to **`npm run start:prod:with-migrate`** and redeploy.
+
 ## Build & run locally (production mode)
 
 **Backend**

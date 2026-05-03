@@ -22,9 +22,8 @@ cp .env.example .env
 # Edit .env: DATABASE_URL, JWT_SECRET, SUPER_ADMIN_*, CORS_ORIGIN, PORT (default 5000)
 npm install
 npx prisma generate
-# First time or schema changes in dev (optional; production uses migrate deploy)
-npx prisma db push
-# or: npx prisma migrate dev
+# Dev schema sync (optional): npx prisma db push  OR  npx prisma migrate dev
+# Production / Render: use  npx prisma migrate deploy  (see DEPLOYMENT.md)
 npm run start:dev
 ```
 
