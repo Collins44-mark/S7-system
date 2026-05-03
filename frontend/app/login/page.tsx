@@ -2,11 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import {
-  api,
-  getResolvedApiBaseUrl,
-  isApiUrlMissing,
-} from "@/lib/api";
+import { api, isApiUrlMissing } from "@/lib/api";
 import { getApiErrorMessage } from "@/lib/api-error";
 import { useAuthStore } from "@/lib/auth-store";
 import { Button } from "@/components/ui/button";
@@ -19,7 +15,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Box } from "lucide-react";
+import { Box, Eye, EyeOff } from "lucide-react";
 
 type LoginResponse =
   | { access_token: string; role: "SUPER_ADMIN" }
@@ -38,6 +34,7 @@ export default function LoginPage() {
   const session = useAuthStore((s) => s.session);
   const [loginId, setLoginId] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -87,8 +84,7 @@ export default function LoginPage() {
           </div>
           <CardTitle className="text-2xl text-slate-800">Sign in</CardTitle>
           <CardDescription className="text-slate-600">
-            Business code (e.g. S7-0001) or the super admin Login ID from{" "}
-            <code className="rounded bg-slate-100 px-1 text-xs">SUPER_ADMIN_ID</code>
+            Enter your login ID and password.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -102,21 +98,34 @@ export default function LoginPage() {
                 value={loginId}
                 onChange={(e) => setLoginId(e.target.value)}
                 className="rounded-xl"
-                placeholder="Business code or SUPER_ADMIN_ID value"
               />
             </div>
             <div className="space-y-2">
               <Label htmlFor="password">Password</Label>
-              <Input
-                id="password"
-                type="password"
-                required
-                minLength={1}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="rounded-xl"
-                autoComplete="current-password"
-              />
+              <div className="relative">
+                <Input
+                  id="password"
+                  type={showPassword ? "text" : "password"}
+                  required
+                  minLength={1}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="rounded-xl pr-11"
+                  autoComplete="current-password"
+                />
+                <button
+                  type="button"
+                  className="absolute right-1 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-800"
+                  onClick={() => setShowPassword((v) => !v)}
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                >
+                  {showPassword ? (
+                    <EyeOff className="h-4 w-4" aria-hidden />
+                  ) : (
+                    <Eye className="h-4 w-4" aria-hidden />
+                  )}
+                </button>
+              </div>
             </div>
             {isApiUrlMissing() && (
               <div
@@ -130,14 +139,6 @@ export default function LoginPage() {
                 <strong>no</strong> <code className="rounded bg-white px-1">/api</code>{" "}
                 suffix — then redeploy.
               </div>
-            )}
-            {!isApiUrlMissing() && (
-              <p className="text-center text-[11px] text-slate-500">
-                API:{" "}
-                <span className="break-all font-mono">
-                  {getResolvedApiBaseUrl() || "(not set)"}
-                </span>
-              </p>
             )}
             {error && (
               <p
