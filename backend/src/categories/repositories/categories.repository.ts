@@ -9,7 +9,11 @@ export class CategoriesRepository {
     return this.prisma.category.findMany({
       where: { businessId },
       orderBy: { name: 'asc' },
-      include: { _count: { select: { items: true } } },
+      select: {
+        id: true,
+        name: true,
+        _count: { select: { items: true } },
+      },
     });
   }
 

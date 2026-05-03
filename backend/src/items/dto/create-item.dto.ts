@@ -1,4 +1,10 @@
-import { IsInt, IsString, IsUUID, Min, MinLength } from 'class-validator';
+import {
+  IsInt,
+  IsNotEmpty,
+  IsString,
+  Min,
+  MinLength,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class CreateItemDto {
@@ -6,7 +12,9 @@ export class CreateItemDto {
   @MinLength(1)
   name: string;
 
-  @IsUUID()
+  /** Category PK is a Prisma `cuid()`, not a UUID */
+  @IsString()
+  @IsNotEmpty()
   categoryId: string;
 
   @Type(() => Number)

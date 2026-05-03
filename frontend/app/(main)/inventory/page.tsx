@@ -39,6 +39,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Layers, Plus, MoreVertical } from "lucide-react";
+import { getApiErrorMessage } from "@/lib/api-error";
 
 type Category = { id: string; name: string };
 type Item = {
@@ -53,19 +54,36 @@ type Item = {
 
 type InventoryPayload = { items: Item[]; categories: Category[] };
 
+/** GET /categories — tolerate extra fields; always `{ id, name }`. */
+function normalizeCategories(raw: unknown): Category[] {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .filter((c): c is Record<string, unknown> => c != null && typeof c === "object")
+    .map((c) => ({
+      id: String(c.id ?? "").trim(),
+      name:
+        typeof c.name === "string"
+          ? c.name
+          : c.name != null
+            ? String(c.name)
+            : "",
+    }))
+    .filter((c) => c.id.length > 0);
+}
+
 export default function InventoryPage() {
   const [addOpen, setAddOpen] = useState(false);
   const [editItem, setEditItem] = useState<Item | null>(null);
   const [restockItem, setRestockItem] = useState<Item | null>(null);
 
   const load = useCallback(async (): Promise<InventoryPayload> => {
-    const [it, cat] = await Promise.all([
+    const [itemsRes, categoriesRes] = await Promise.all([
       api.get<Item[]>("/items"),
-      api.get<(Category & { _count?: { items: number } })[]>("/categories"),
+      api.get<Category[]>("/categories"),
     ]);
     return {
-      items: it.data,
-      categories: cat.data.map(({ id, name }) => ({ id, name })),
+      items: itemsRes.data,
+      categories: normalizeCategories(categoriesRes.data),
     };
   }, []);
 
@@ -268,9 +286,13 @@ function ItemFormDialog({
   const [quantity, setQuantity] = useState("");
   const [threshold, setThreshold] = useState("10");
   const [saving, setSaving] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
+  const [formSuccess, setFormSuccess] = useState(false);
 
   useEffect(() => {
     if (open) {
+      setFormError(null);
+      setFormSuccess(false);
       if (initial) {
         setName(initial.name);
         setCategoryId(initial.category.id);
@@ -289,29 +311,105 @@ function ItemFormDialog({
     }
   }, [open, initial, categories]);
 
+  /** Keep selected category valid when list loads or changes (Radix Select breaks on stale / empty value). */
+  useEffect(() => {
+    if (!open || initial) return;
+    if (categories.length === 0) {
+      setCategoryId("");
+      return;
+    }
+    if (!categoryId || !categories.some((c) => c.id === categoryId)) {
+      setCategoryId(categories[0].id);
+    }
+  }, [open, initial, categories, categoryId]);
+
   const profitPreview =
     Number(sellingPrice || 0) - Number(buyingPrice || 0);
 
+  const categorySelectValue =
+    categoryId && categories.some((c) => c.id === categoryId)
+      ? categoryId
+      : undefined;
+
+  const canSubmitAdd =
+    categories.length > 0 &&
+    Boolean(categoryId && categories.some((c) => c.id === categoryId));
+
   async function submit(e: React.FormEvent) {
     e.preventDefault();
+    setFormError(null);
+    setFormSuccess(false);
     setSaving(true);
+    let completed = false;
     try {
-      const body = {
-        name,
-        categoryId,
-        buyingPrice: Number(buyingPrice),
-        sellingPrice: Number(sellingPrice),
-        quantity: Number(quantity),
-        lowStockThreshold: Number(threshold),
-      };
-      if (initial) {
-        await api.patch(`/items/${initial.id}`, body);
-      } else {
-        await api.post("/items", body);
+      const cid = categoryId.trim();
+      if (!cid || !categories.some((c) => c.id === cid)) {
+        setFormError("Please select a category.");
+        return;
       }
-      onSaved();
+
+      const buying = parseFloat(String(buyingPrice).replace(",", "."));
+      const selling = parseFloat(String(sellingPrice).replace(",", "."));
+      const qty = parseInt(String(quantity), 10);
+      const lowStockThreshold = parseInt(String(threshold), 10);
+
+      if (Number.isNaN(buying) || buying < 0) {
+        setFormError("Buying price must be a valid number ≥ 0.");
+        return;
+      }
+      if (Number.isNaN(selling) || selling < 0) {
+        setFormError("Selling price must be a valid number ≥ 0.");
+        return;
+      }
+      if (Number.isNaN(qty) || qty < 0 || !Number.isInteger(qty)) {
+        setFormError("Quantity must be a whole number ≥ 0.");
+        return;
+      }
+      if (
+        Number.isNaN(lowStockThreshold) ||
+        lowStockThreshold < 0 ||
+        !Number.isInteger(lowStockThreshold)
+      ) {
+        setFormError("Low stock threshold must be a whole number ≥ 0.");
+        return;
+      }
+
+      const body = {
+        name: name.trim(),
+        categoryId: cid,
+        buyingPrice: buying,
+        sellingPrice: selling,
+        quantity: qty,
+        lowStockThreshold,
+      };
+
+      if (!body.name) {
+        setFormError("Name is required.");
+        return;
+      }
+
+      console.log("Submitting item:", body);
+
+      if (initial) {
+        const res = await api.patch<Item>(`/items/${initial.id}`, body);
+        console.log("Item updated:", res.data);
+      } else {
+        const res = await api.post<Item>("/items", body);
+        console.log("Item created:", res.data);
+      }
+
+      setFormSuccess(true);
+      completed = true;
+    } catch (err) {
+      console.error("Item save failed:", err);
+      setFormError(getApiErrorMessage(err));
     } finally {
       setSaving(false);
+    }
+
+    if (completed) {
+      await new Promise((r) => setTimeout(r, 700));
+      onSaved();
     }
   }
 
@@ -322,6 +420,22 @@ function ItemFormDialog({
           <DialogTitle>{initial ? "Edit item" : "Add item"}</DialogTitle>
         </DialogHeader>
         <form onSubmit={submit} className="space-y-4">
+          {formSuccess && (
+            <div
+              className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800"
+              role="status"
+            >
+              {initial ? "Item updated." : "Item added successfully."}
+            </div>
+          )}
+          {formError && (
+            <div
+              className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800 whitespace-pre-wrap"
+              role="alert"
+            >
+              {formError}
+            </div>
+          )}
           <div>
             <Label>Name</Label>
             <Input
@@ -334,12 +448,21 @@ function ItemFormDialog({
           <div>
             <Label>Category</Label>
             <Select
-              value={categoryId}
-              onValueChange={(v) => v && setCategoryId(v)}
+              value={categorySelectValue}
+              onValueChange={(v) => {
+                if (v) setCategoryId(v);
+              }}
               required
+              disabled={categories.length === 0}
             >
               <SelectTrigger className="mt-1 rounded-xl">
-                <SelectValue placeholder="Category" />
+                <SelectValue
+                  placeholder={
+                    categories.length === 0
+                      ? "Create a category first"
+                      : "Select category"
+                  }
+                />
               </SelectTrigger>
               <SelectContent>
                 {categories.map((c) => (
@@ -406,7 +529,12 @@ function ItemFormDialog({
           </div>
           <Button
             type="submit"
-            disabled={saving}
+            disabled={
+              saving ||
+              formSuccess ||
+              (!initial && !canSubmitAdd) ||
+              (!initial && categories.length === 0)
+            }
             className="btn-primary-gradient w-full rounded-xl text-white"
           >
             {saving ? "Saving…" : initial ? "Save" : "Add item"}

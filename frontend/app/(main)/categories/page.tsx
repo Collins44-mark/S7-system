@@ -30,7 +30,7 @@ import {
 type Cat = {
   id: string;
   name: string;
-  _count: { items: number };
+  itemCount: number;
 };
 
 const iconFor = (name: string) => {
@@ -146,7 +146,7 @@ export default function CategoriesPage() {
                 </div>
                 <h3 className="font-semibold text-slate-800">{c.name}</h3>
                 <p className="mt-1 text-xs text-slate-500">
-                  {c._count.items} items
+                  {c.itemCount} items
                 </p>
               </div>
             );

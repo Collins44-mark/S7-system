@@ -10,8 +10,14 @@ import type { BusinessPrincipal } from '../../common/decorators/current-user.dec
 export class CategoriesService {
   constructor(private readonly categories: CategoriesRepository) {}
 
-  list(user: BusinessPrincipal) {
-    return this.categories.findAllForBusiness(user.sub);
+  /** Plain JSON for clients: `{ id, name, itemCount }` (no nested Prisma `_count`). */
+  async list(user: BusinessPrincipal) {
+    const rows = await this.categories.findAllForBusiness(user.sub);
+    return rows.map((r) => ({
+      id: r.id,
+      name: r.name,
+      itemCount: r._count.items,
+    }));
   }
 
   async create(user: BusinessPrincipal, name: string) {
