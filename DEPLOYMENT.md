@@ -39,7 +39,18 @@ Copy `backend/.env.example` as a starting point.
 |----------|---------|
 | `NEXT_PUBLIC_API_URL` | API **origin** only (no `/api` path). Example: `https://api.yourdomain.com` or `http://localhost:5000`. The client appends `/api` automatically. |
 
-Copy `frontend/.env.example`. On Vercel, set `NEXT_PUBLIC_API_URL` to your **deployed API origin** before running `npm run build` (Next.js bakes public env vars into the client bundle at build time).
+Copy `frontend/.env.example`.
+
+**Vercel (required or login shows “Cannot reach the server”):**
+
+1. Project → **Settings** → **Environment Variables**.
+2. Add **`NEXT_PUBLIC_API_URL`** = your backend base URL, e.g. `https://your-service.onrender.com`  
+   - Use **`https://`** if your frontend is HTTPS (mixed HTTP API calls are blocked).
+   - Do **not** include `/api` (the app adds it).
+3. Apply to **Production** (and Preview if you use preview deploys).
+4. **Redeploy** the frontend so the build picks up the variable (Next embeds `NEXT_PUBLIC_*` at build time).
+
+On the login page, the small **API:** line shows which URL the browser will call — use it to confirm configuration.
 
 ## Database (production)
 

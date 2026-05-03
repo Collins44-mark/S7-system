@@ -2,7 +2,11 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { api } from "@/lib/api";
+import {
+  api,
+  getResolvedApiBaseUrl,
+  isApiUrlMissing,
+} from "@/lib/api";
 import { getApiErrorMessage } from "@/lib/api-error";
 import { useAuthStore } from "@/lib/auth-store";
 import { Button } from "@/components/ui/button";
@@ -114,14 +118,38 @@ export default function LoginPage() {
                 autoComplete="current-password"
               />
             </div>
+            {isApiUrlMissing() && (
+              <div
+                className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900"
+                role="status"
+              >
+                <strong className="font-semibold">API URL not configured.</strong>{" "}
+                Set{" "}
+                <code className="rounded bg-white px-1">NEXT_PUBLIC_API_URL</code>{" "}
+                on your frontend host (e.g. Vercel) to your backend origin —{" "}
+                <strong>no</strong> <code className="rounded bg-white px-1">/api</code>{" "}
+                suffix — then redeploy.
+              </div>
+            )}
+            {!isApiUrlMissing() && (
+              <p className="text-center text-[11px] text-slate-500">
+                API:{" "}
+                <span className="break-all font-mono">
+                  {getResolvedApiBaseUrl() || "(not set)"}
+                </span>
+              </p>
+            )}
             {error && (
-              <p className="text-sm text-red-600" role="alert">
+              <p
+                className="whitespace-pre-wrap text-sm text-red-600"
+                role="alert"
+              >
                 {error}
               </p>
             )}
             <Button
               type="submit"
-              disabled={loading}
+              disabled={loading || isApiUrlMissing()}
               className="btn-primary-gradient h-11 w-full rounded-xl text-white"
             >
               {loading ? "Please wait…" : "Sign in"}
