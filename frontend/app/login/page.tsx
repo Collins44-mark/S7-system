@@ -83,7 +83,8 @@ export default function LoginPage() {
           </div>
           <CardTitle className="text-2xl text-slate-800">Sign in</CardTitle>
           <CardDescription className="text-slate-600">
-            Business ID or super admin login
+            Business code (e.g. S7-0001) or the super admin Login ID from{" "}
+            <code className="rounded bg-slate-100 px-1 text-xs">SUPER_ADMIN_ID</code>
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -97,7 +98,7 @@ export default function LoginPage() {
                 value={loginId}
                 onChange={(e) => setLoginId(e.target.value)}
                 className="rounded-xl"
-                placeholder="e.g. S7-0001"
+                placeholder="Business code or SUPER_ADMIN_ID value"
               />
             </div>
             <div className="space-y-2">

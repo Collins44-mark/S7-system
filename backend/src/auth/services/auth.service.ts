@@ -5,6 +5,7 @@ import * as bcrypt from 'bcrypt';
 import { BusinessesRepository } from '../repositories/businesses.repository';
 import { LoginDto } from '../dto/login.dto';
 import type { AuthPrincipal } from '../../common/decorators/current-user.decorator';
+import { normalizeCredential } from '../utils/env-credentials';
 
 @Injectable()
 export class AuthService {
@@ -14,15 +15,30 @@ export class AuthService {
     private readonly config: ConfigService,
   ) {}
 
+  /** Resolve super-admin env from ConfigModule + process.env (some hosts only populate the latter). */
+  private superAdminEnv(): { id?: string; password?: string } {
+    const id = normalizeCredential(
+      this.config.get<string>('SUPER_ADMIN_ID'),
+      process.env.SUPER_ADMIN_ID,
+    );
+    const password = normalizeCredential(
+      this.config.get<string>('SUPER_ADMIN_PASSWORD'),
+      process.env.SUPER_ADMIN_PASSWORD,
+    );
+    return { id, password };
+  }
+
   async login(dto: LoginDto) {
     const loginId = dto.loginId.trim();
-    const adminId = this.config.get<string>('SUPER_ADMIN_ID')?.trim();
-    const adminPass = this.config.get<string>('SUPER_ADMIN_PASSWORD')?.trim();
+    const passwordIn = dto.password.trim();
+
+    const { id: adminId, password: adminPass } = this.superAdminEnv();
+    const adminConfigured = Boolean(adminId && adminPass);
+
     if (
-      adminId &&
-      adminPass &&
-      loginId === adminId &&
-      dto.password === adminPass
+      adminConfigured &&
+      loginId.toLowerCase() === adminId!.toLowerCase() &&
+      passwordIn === adminPass
     ) {
       return {
         access_token: this.signSuperAdmin(),
@@ -33,7 +49,7 @@ export class AuthService {
     const business = await this.businesses.findByUniqueCode(loginId);
     const ok =
       business &&
-      (await bcrypt.compare(dto.password, business.passwordHash));
+      (await bcrypt.compare(passwordIn, business.passwordHash));
     if (!ok) {
       throw new UnauthorizedException('Invalid credentials');
     }

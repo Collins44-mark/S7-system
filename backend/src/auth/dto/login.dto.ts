@@ -1,14 +1,13 @@
-import { IsString, Matches, MinLength } from 'class-validator';
+import { IsString, MaxLength, MinLength } from 'class-validator';
 
 export class LoginDto {
   @IsString()
   @MinLength(1)
-  @Matches(/^[\w.-]+$/, {
-    message: 'loginId must contain only letters, numbers, dot, hyphen, or underscore',
-  })
+  @MaxLength(128)
   loginId: string;
 
   @IsString()
   @MinLength(1)
+  @MaxLength(256)
   password: string;
 }

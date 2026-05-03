@@ -98,6 +98,15 @@ CORS_ORIGIN=https://my-app.vercel.app,http://localhost:3000
 - `GET http://<API_HOST>:<PORT>/api` — app root (if exposed).
 - Log in from the frontend; JWT should be issued and subsequent requests should include `Authorization: Bearer …`.
 
+## Super admin login troubleshooting
+
+1. **Exact variable names** on the API host: `SUPER_ADMIN_ID` and `SUPER_ADMIN_PASSWORD` (case-sensitive names).
+2. **Both must be set** — if either is missing, super admin login is disabled (check deploy logs on boot for `Super admin login is configured.` vs the warning).
+3. **Login ID field** must match `SUPER_ADMIN_ID` exactly apart from letter case (e.g. `S7-0000` vs `s7-0000` both work). Password must match character-for-character after trimming spaces.
+4. **No extra quotes** in the dashboard UI — if you pasted `"mysecret"`, the backend strips one pair of surrounding quotes; prefer entering values without quotes.
+5. **Avoid creating a business** whose `uniqueCode` equals your `SUPER_ADMIN_ID` — super admin is checked first, but duplicates cause confusion.
+6. After login you should land on **`/admin/dashboard`**. If the API returns `Invalid credentials`, the usual causes are wrong password, unset env vars, or the request hitting a **different** backend instance than the one you configured.
+
 ## No mock data
 
 Application data comes from PostgreSQL via Prisma; there is no in-code mock API layer for production features.
