@@ -2,7 +2,7 @@
 
 import { useCallback } from "react";
 import { api } from "@/lib/api";
-import { money } from "@/lib/format";
+import { money, parseAmount } from "@/lib/format";
 import { useAsyncData } from "@/hooks/use-async-data";
 import { SparkArea } from "@/components/spark-area";
 import { ErrorBanner } from "@/components/error-banner";
@@ -64,8 +64,8 @@ export default function DashboardPage() {
 
   const dash = data!.dashboard;
   const ts = data!.timeseries;
-  const salesNums = (ts?.sales ?? []).map((s) => Number(s));
-  const profitNums = (ts?.profit ?? []).map((s) => Number(s));
+  const salesNums = (ts?.sales ?? []).map((s) => parseAmount(s) ?? 0);
+  const profitNums = (ts?.profit ?? []).map((s) => parseAmount(s) ?? 0);
 
   return (
     <div className="animate-in-page space-y-6">

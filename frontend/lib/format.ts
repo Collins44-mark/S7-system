@@ -1,3 +1,5 @@
+import Decimal from "decimal.js";
+
 /**
  * Parse API amounts (string, number, or Prisma Decimal-like objects) for math/display.
  */
@@ -33,7 +35,9 @@ export function parseAmount(raw: unknown): number | null {
     const o = raw as Record<string, unknown>;
     if (Array.isArray(o.d)) {
       try {
-        return parseAmount((raw as { toString: () => string }).toString());
+        const dec = new Decimal(raw as Decimal.Value);
+        const n = dec.toNumber();
+        return Number.isFinite(n) ? n : null;
       } catch {
         return null;
       }

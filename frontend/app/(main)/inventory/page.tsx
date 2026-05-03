@@ -54,21 +54,26 @@ type Item = {
 
 type InventoryPayload = { items: Item[]; categories: Category[] };
 
+function coercePriceCell(raw: unknown): string {
+  const n = parseAmount(raw);
+  if (n != null) return n.toFixed(2);
+  if (typeof raw === "string" && raw.trim()) return raw.trim();
+  return "0.00";
+}
+
 function normalizeItemFromApi(raw: unknown): Item {
   const r = raw as Record<string, unknown>;
   const cat = r.category as Record<string, unknown> | undefined;
-  const buy = parseAmount(r.buyingPrice);
-  const sell = parseAmount(r.sellingPrice);
   return {
     id: String(r.id ?? ""),
     name: String(r.name ?? ""),
-    buyingPrice: buy != null ? buy.toFixed(2) : "0.00",
-    sellingPrice: sell != null ? sell.toFixed(2) : "0.00",
+    buyingPrice: coercePriceCell(r.buyingPrice),
+    sellingPrice: coercePriceCell(r.sellingPrice),
     quantity: Number(r.quantity) || 0,
     lowStockThreshold: Number(r.lowStockThreshold) || 0,
     category: {
-      id: String(cat?.id ?? ""),
-      name: String(cat?.name ?? ""),
+      id: String(cat?.id ?? "").trim(),
+      name: String(cat?.name ?? "").trim() || "—",
     },
   };
 }
@@ -344,8 +349,12 @@ function ItemFormDialog({
     }
   }, [open, initial, categories, categoryId]);
 
+  const buyPreview = parseAmount(buyingPrice);
+  const sellPreview = parseAmount(sellingPrice);
   const profitPreview =
-    Number(sellingPrice || 0) - Number(buyingPrice || 0);
+    buyPreview != null && sellPreview != null
+      ? sellPreview - buyPreview
+      : null;
 
   const categorySelectValue =
     categoryId && categories.some((c) => c.id === categoryId)
@@ -483,7 +492,13 @@ function ItemFormDialog({
                       ? "Create a category first"
                       : "Select category"
                   }
-                />
+                >
+                  {categorySelectValue
+                    ? categories.find((c) => c.id === categorySelectValue)
+                        ?.name?.trim() ||
+                      "Category"
+                    : null}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 {categories.map((c) => (
@@ -545,7 +560,7 @@ function ItemFormDialog({
           <div className="flex items-center justify-between rounded-xl bg-emerald-50 p-3">
             <span className="text-sm text-slate-600">Profit per item</span>
             <span className="font-bold text-emerald-600">
-              {money(profitPreview)}
+              {profitPreview != null ? money(profitPreview) : "—"}
             </span>
           </div>
           <Button

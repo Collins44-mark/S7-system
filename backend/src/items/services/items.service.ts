@@ -17,8 +17,23 @@ export class ItemsService {
     return new Prisma.Decimal(String(n));
   }
 
-  list(user: BusinessPrincipal) {
-    return this.items.findAllWithCategory(user.sub);
+  /** JSON must carry prices as plain strings (never Prisma Decimal JSON blobs). */
+  private withDecimalStrings<
+    T extends {
+      buyingPrice: { toString(): string };
+      sellingPrice: { toString(): string };
+    },
+  >(row: T) {
+    return {
+      ...row,
+      buyingPrice: row.buyingPrice.toString(),
+      sellingPrice: row.sellingPrice.toString(),
+    };
+  }
+
+  async list(user: BusinessPrincipal) {
+    const rows = await this.items.findAllWithCategory(user.sub);
+    return rows.map((row) => this.withDecimalStrings(row));
   }
 
   async create(user: BusinessPrincipal, dto: CreateItemDto) {
@@ -26,7 +41,7 @@ export class ItemsService {
     if (!cat) {
       throw new BadRequestException('Invalid category');
     }
-    return this.items.create({
+    const row = await this.items.create({
       businessId: user.sub,
       name: dto.name.trim(),
       categoryId: dto.categoryId,
@@ -35,6 +50,7 @@ export class ItemsService {
       quantity: dto.quantity,
       lowStockThreshold: dto.lowStockThreshold,
     });
+    return this.withDecimalStrings(row);
   }
 
   async update(user: BusinessPrincipal, id: string, dto: UpdateItemDto) {
@@ -48,7 +64,7 @@ export class ItemsService {
         throw new BadRequestException('Invalid category');
       }
     }
-    return this.items.update(id, {
+    const row = await this.items.update(id, {
       ...(dto.name != null ? { name: dto.name.trim() } : {}),
       ...(dto.categoryId != null ? { categoryId: dto.categoryId } : {}),
       ...(dto.buyingPrice != null
@@ -62,6 +78,7 @@ export class ItemsService {
         ? { lowStockThreshold: dto.lowStockThreshold }
         : {}),
     });
+    return this.withDecimalStrings(row);
   }
 
   async remove(user: BusinessPrincipal, id: string) {
@@ -83,11 +100,12 @@ export class ItemsService {
     if (!item) {
       throw new NotFoundException('Item not found');
     }
-    return this.items.restockWithLog({
+    const row = await this.items.restockWithLog({
       itemId: id,
       businessId: user.sub,
       quantity,
       notes: notes ?? null,
     });
+    return this.withDecimalStrings(row);
   }
 }

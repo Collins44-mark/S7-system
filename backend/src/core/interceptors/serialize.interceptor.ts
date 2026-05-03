@@ -18,6 +18,18 @@ function serialize(value: unknown): unknown {
     return value.toString();
   }
   if (typeof value === 'object') {
+    if (
+      typeof (value as { toJSON?: () => unknown }).toJSON === 'function'
+    ) {
+      try {
+        const j = (value as { toJSON: () => unknown }).toJSON();
+        if (typeof j === 'string' || typeof j === 'number') {
+          return j;
+        }
+      } catch {
+        /* fall through */
+      }
+    }
     const ctor = (value as object).constructor?.name;
     if (ctor === 'Decimal' || ctor === 'PrismaDecimal') {
       return String(value);
