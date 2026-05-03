@@ -1,3 +1,6 @@
+// Prisma 7: connection URL is configured in prisma.config.ts (env DATABASE_URL).
+// The `url` field is not allowed in this file — see https://pris.ly/d/config-datasource
+
 generator client {
   provider = "prisma-client"
   output   = "../generated/prisma"

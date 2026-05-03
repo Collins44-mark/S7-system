@@ -52,22 +52,50 @@ Copy `frontend/.env.example`.
 
 On the login page, the small **API:** line shows which URL the browser will call — use it to confirm configuration.
 
-## Database (production)
+## Prisma 7 & database schema
 
-1. Set `DATABASE_URL` on the API host.
-2. Generate Prisma Client (often automatic via `postinstall`):
+| Item | Location |
+|------|----------|
+| Models (`Business`, `Category`, `Item`, …) | `backend/prisma/schema.prisma` |
+| **Connection URL for Migrate / CLI** | `backend/prisma.config.ts` → `process.env.DATABASE_URL` |
+| Client output | `backend/generated/prisma` (gitignored; `npm run prisma:generate` or `postinstall`) |
 
-   ```bash
-   cd backend && npx prisma generate
-   ```
+**Run Prisma from `backend/`:** All `npx prisma …` commands and `npm run prisma:*` scripts assume your shell’s current directory is **`backend/`**. If you run them from the monorepo root (`S7 system/`), Prisma reports *Could not find Prisma Schema* because there is no `prisma/schema.prisma` at the repo root.
 
-3. Apply migrations:
+**Important:** Prisma **7** does **not** allow `url = env("DATABASE_URL")` inside `schema.prisma`. The datasource URL lives in **`prisma.config.ts`** only. The Nest app still reads **`DATABASE_URL`** via `ConfigService` for the `pg` pool — keep the same value in env everywhere.
 
-   ```bash
-   cd backend && npx prisma migrate deploy
-   ```
+### npm scripts (`backend/package.json`)
 
-Do **not** use `prisma db push` on production unless you intentionally manage schema outside migrations.
+| Script | Purpose |
+|--------|---------|
+| `npm run prisma:generate` | `prisma generate` |
+| `npm run prisma:migrate` | `prisma migrate dev` (creates/applies migrations in **dev**) |
+| `npm run prisma:deploy` | `prisma migrate deploy` (applies existing migrations in **prod/CI**) |
+| `npm run prisma:validate` | `prisma validate` |
+| `npm run start:prod` | Start Nest only (assumes DB already migrated) |
+| `npm run start:prod:with-migrate` | **`prisma migrate deploy` then Nest** — use on **Render** |
+
+Initial migration: `prisma/migrations/20260203120000_initial/migration.sql` creates all tables (including **`public.Business`**).
+
+### Local development
+
+```bash
+cd backend
+cp .env.example .env   # set DATABASE_URL to local Postgres
+npm install
+npm run prisma:generate
+# Create a new migration after model changes:
+npm run prisma:migrate -- --name describe_your_change
+# Or sync schema without migration history (dev only):
+npm run prisma:push
+```
+
+### Production (any host)
+
+1. Set **`DATABASE_URL`** (no hardcoded URLs in code).
+2. **`npm run prisma:deploy`** before first start, **or** use **`npm run start:prod:with-migrate`** as the process start command so every deploy applies pending migrations.
+
+Do **not** rely on `prisma db push` in production unless you intentionally avoid Migrate.
 
 ### Render.com (Web Service)
 
