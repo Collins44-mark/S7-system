@@ -98,11 +98,17 @@ npm run start
 
 ## CORS
 
-Set `CORS_ORIGIN` to every frontend origin that should call the API, for example:
+- **Recommended:** set `CORS_ORIGIN` to your exact frontend origin(s):
 
-```env
-CORS_ORIGIN=https://my-app.vercel.app,http://localhost:3000
-```
+  ```env
+  CORS_ORIGIN=https://my-app.vercel.app
+  ```
+
+- **If you omit `CORS_ORIGIN` on production** (e.g. Render), the API **reflects the browser `Origin`** so Vercel → Render login works without extra config. Logs will show a one-line warning — tighten later with an explicit allowlist.
+
+- **`CORS_ORIGIN=*`** means allow any origin (reflect). Prefer a fixed URL when you can.
+
+Local dev without `NODE_ENV=production` still defaults to `http://localhost:3000`.
 
 ## Smoke checks
 

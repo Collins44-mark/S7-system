@@ -18,12 +18,34 @@ async function bootstrap() {
   }
 
   const app = await NestFactory.create(AppModule);
+
+  /**
+   * CORS: Previously we defaulted to localhost only when CORS_ORIGIN was unset,
+   * which blocked Vercel → Render and looked like a generic "network error".
+   */
   const origins =
     process.env.CORS_ORIGIN?.split(',').map((s) => s.trim()).filter(Boolean) ??
     [];
+
+  let corsOrigin: boolean | string[];
+  if (origins.includes('*')) {
+    corsOrigin = true;
+  } else if (origins.length > 0) {
+    corsOrigin = origins;
+  } else if (process.env.NODE_ENV === 'production') {
+    logger.warn(
+      'CORS_ORIGIN not set — allowing reflected Origin (Vercel + Render). Set CORS_ORIGIN=https://your-app.vercel.app to restrict callers.',
+    );
+    corsOrigin = true;
+  } else {
+    corsOrigin = ['http://localhost:3000'];
+  }
+
   app.enableCors({
-    origin: origins.length ? origins : ['http://localhost:3000'],
+    origin: corsOrigin,
     credentials: true,
+    methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
   });
   app.setGlobalPrefix('api');
   app.useGlobalFilters(new GlobalExceptionFilter());
@@ -36,6 +58,6 @@ async function bootstrap() {
     }),
   );
   const port = Number(process.env.PORT) || 5000;
-  await app.listen(port);
+  await app.listen(port, '0.0.0.0');
 }
 bootstrap();
