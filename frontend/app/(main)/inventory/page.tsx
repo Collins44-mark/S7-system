@@ -237,7 +237,7 @@ export default function InventoryPage() {
                   <TableCell>{money(item.buyingPrice)}</TableCell>
                   <TableCell>{money(item.sellingPrice)}</TableCell>
                   <TableCell>
-                    {item.quantity} {item.unit}
+                    {(String(item.quantity ?? "").trim() || "0")} {item.unit}
                   </TableCell>
                   <TableCell className="text-emerald-600">
                     {profit != null ? money(profit) : "—"}
