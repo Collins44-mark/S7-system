@@ -24,7 +24,7 @@ export type ReceiptOrder = {
     quantity: string;
     unitSellPrice: string;
     lineTotal: string;
-    item: { name: string };
+    item: { name: string; unit?: string };
   }[];
 };
 
@@ -126,6 +126,7 @@ export function ReceiptDialog({
                 >
                   <span>
                     {li.item.name} ×{li.quantity}
+                    {li.item.unit ? ` ${li.item.unit}` : ""}
                   </span>
                   <span>{money(li.lineTotal)}</span>
                 </div>

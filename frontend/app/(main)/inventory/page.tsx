@@ -197,7 +197,7 @@ export default function InventoryPage() {
                 {t("inventory.col.category")}
               </TableHead>
               <TableHead className="text-xs uppercase text-slate-500">
-                Unit
+                {t("inventory.col.unit")}
               </TableHead>
               <TableHead className="text-xs uppercase text-slate-500">
                 {t("inventory.col.buy")}
@@ -236,7 +236,9 @@ export default function InventoryPage() {
                   <TableCell>{item.unit}</TableCell>
                   <TableCell>{money(item.buyingPrice)}</TableCell>
                   <TableCell>{money(item.sellingPrice)}</TableCell>
-                  <TableCell>{item.quantity}</TableCell>
+                  <TableCell>
+                    {item.quantity} {item.unit}
+                  </TableCell>
                   <TableCell className="text-emerald-600">
                     {profit != null ? money(profit) : "—"}
                   </TableCell>

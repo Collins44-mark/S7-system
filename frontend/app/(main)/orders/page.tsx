@@ -49,6 +49,7 @@ const PAYMENT_CODES = [
 type ItemRow = {
   id: string;
   name: string;
+  unit: string;
   sellingPrice: string;
   quantity: string;
 };
@@ -93,6 +94,9 @@ export default function OrdersPage() {
         return {
           id: i.id,
           name: i.name,
+          unit: typeof (i as unknown as { unit?: unknown }).unit === "string"
+            ? String((i as unknown as { unit?: unknown }).unit)
+            : "pcs",
           sellingPrice: sp != null ? sp.toFixed(2) : "0.00",
           quantity: String((i as unknown as { quantity?: unknown }).quantity ?? "0"),
         };
@@ -519,7 +523,7 @@ function CreateOrderDialog({
                       <p className="text-xs text-slate-500">
                         {t("orders.stockLine", {
                           price: money(it.sellingPrice),
-                          qty: it.quantity,
+                          qty: `${it.quantity} ${it.unit}`,
                         })}
                       </p>
                     </div>
