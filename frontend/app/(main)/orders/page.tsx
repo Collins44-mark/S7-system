@@ -50,7 +50,7 @@ type ItemRow = {
   id: string;
   name: string;
   sellingPrice: string;
-  quantity: number;
+  quantity: string;
 };
 
 type OrderRow = {
@@ -94,7 +94,7 @@ export default function OrdersPage() {
           id: i.id,
           name: i.name,
           sellingPrice: sp != null ? sp.toFixed(2) : "0.00",
-          quantity: i.quantity,
+          quantity: String((i as unknown as { quantity?: unknown }).quantity ?? "0"),
         };
       }),
     );
@@ -362,9 +362,24 @@ function CreateOrderDialog({
   function setQty(id: string, delta: number) {
     const it = items.find((i) => i.id === id);
     if (!it) return;
+    const stock = parseAmount(it.quantity) ?? 0;
     setLines((prev) => {
       const cur = prev[id] ?? 0;
-      const next = Math.max(0, Math.min(it.quantity, cur + delta));
+      const next = Math.max(0, Math.min(stock, cur + delta));
+      const copy = { ...prev };
+      if (next === 0) delete copy[id];
+      else copy[id] = next;
+      return copy;
+    });
+  }
+
+  function setQtyValue(id: string, raw: string) {
+    const it = items.find((i) => i.id === id);
+    if (!it) return;
+    const stock = parseAmount(it.quantity) ?? 0;
+    const v = parseFloat(String(raw).replace(",", "."));
+    const next = Number.isFinite(v) ? Math.max(0, Math.min(stock, v)) : 0;
+    setLines((prev) => {
       const copy = { ...prev };
       if (next === 0) delete copy[id];
       else copy[id] = next;
@@ -493,6 +508,7 @@ function CreateOrderDialog({
             <div className="max-h-56 space-y-2 overflow-y-auto pr-1">
               {filtered.map((it) => {
                 const q = lines[it.id] ?? 0;
+                const stock = parseAmount(it.quantity) ?? 0;
                 return (
                   <div
                     key={it.id}
@@ -517,9 +533,16 @@ function CreateOrderDialog({
                       >
                         −
                       </Button>
-                      <span className="w-6 text-center text-sm font-medium">
-                        {q}
-                      </span>
+                      <Input
+                        type="number"
+                        step="any"
+                        min={0}
+                        max={stock}
+                        value={q === 0 ? "" : String(q)}
+                        onChange={(e) => setQtyValue(it.id, e.target.value)}
+                        className="h-8 w-20 rounded-lg text-center"
+                        aria-label="Quantity"
+                      />
                       <Button
                         type="button"
                         size="icon"

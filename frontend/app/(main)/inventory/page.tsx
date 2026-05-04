@@ -42,15 +42,17 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Layers, Plus, MoreVertical } from "lucide-react";
 import { getApiErrorMessage } from "@/lib/api-error";
+import { useSearchParams } from "next/navigation";
 
 type Category = { id: string; name: string };
 type Item = {
   id: string;
   name: string;
+  unit: string;
   buyingPrice: string;
   sellingPrice: string;
-  quantity: number;
-  lowStockThreshold: number;
+  quantity: string;
+  lowStockThreshold: string;
   category: Category;
 };
 
@@ -69,10 +71,11 @@ function normalizeItemFromApi(raw: unknown): Item {
   return {
     id: String(r.id ?? ""),
     name: String(r.name ?? ""),
+    unit: typeof r.unit === "string" ? r.unit : String(r.unit ?? "pcs"),
     buyingPrice: coercePriceCell(r.buyingPrice),
     sellingPrice: coercePriceCell(r.sellingPrice),
-    quantity: Number(r.quantity) || 0,
-    lowStockThreshold: Number(r.lowStockThreshold) || 0,
+    quantity: String(r.quantity ?? "0"),
+    lowStockThreshold: String(r.lowStockThreshold ?? "0"),
     category: {
       id: String(cat?.id ?? "").trim(),
       name: String(cat?.name ?? "").trim() || "—",
@@ -100,6 +103,8 @@ function normalizeCategories(raw: unknown): Category[] {
 export default function InventoryPage() {
   const { t } = useI18n();
   const { query } = useSearch();
+  const searchParams = useSearchParams();
+  const selectedCategoryId = (searchParams.get("categoryId") ?? "").trim();
   const [addOpen, setAddOpen] = useState(false);
   const [editItem, setEditItem] = useState<Item | null>(null);
   const [restockItem, setRestockItem] = useState<Item | null>(null);
@@ -121,13 +126,18 @@ export default function InventoryPage() {
   const categories = useMemo(() => data?.categories ?? [], [data]);
   const qInv = query.trim().toLowerCase();
   const filteredItems = useMemo(() => {
-    if (!qInv) return items;
-    return items.filter(
+    let base = items;
+    if (selectedCategoryId) {
+      base = base.filter((i) => i.category.id === selectedCategoryId);
+    }
+    if (!qInv) return base;
+    return base.filter(
       (i) =>
         i.name.toLowerCase().includes(qInv) ||
-        i.category.name.toLowerCase().includes(qInv),
+        i.category.name.toLowerCase().includes(qInv) ||
+        i.unit.toLowerCase().includes(qInv),
     );
-  }, [items, qInv]);
+  }, [items, qInv, selectedCategoryId]);
 
   async function remove(id: string) {
     if (!confirm(t("inventory.deleteConfirm"))) return;
@@ -187,6 +197,9 @@ export default function InventoryPage() {
                 {t("inventory.col.category")}
               </TableHead>
               <TableHead className="text-xs uppercase text-slate-500">
+                Unit
+              </TableHead>
+              <TableHead className="text-xs uppercase text-slate-500">
                 {t("inventory.col.buy")}
               </TableHead>
               <TableHead className="text-xs uppercase text-slate-500">
@@ -206,7 +219,9 @@ export default function InventoryPage() {
           </TableHeader>
           <TableBody>
             {filteredItems.map((item) => {
-              const low = item.quantity <= item.lowStockThreshold;
+              const qty = parseAmount(item.quantity) ?? 0;
+              const lowThreshold = parseAmount(item.lowStockThreshold) ?? 0;
+              const low = qty <= lowThreshold;
               const buy = parseAmount(item.buyingPrice);
               const sell = parseAmount(item.sellingPrice);
               const profit =
@@ -218,6 +233,7 @@ export default function InventoryPage() {
                 >
                   <TableCell className="font-medium">{item.name}</TableCell>
                   <TableCell>{item.category.name}</TableCell>
+                  <TableCell>{item.unit}</TableCell>
                   <TableCell>{money(item.buyingPrice)}</TableCell>
                   <TableCell>{money(item.sellingPrice)}</TableCell>
                   <TableCell>{item.quantity}</TableCell>
@@ -323,6 +339,7 @@ function ItemFormDialog({
 }) {
   const { t } = useI18n();
   const [name, setName] = useState("");
+  const [unit, setUnit] = useState("pcs");
   const [categoryId, setCategoryId] = useState("");
   const [buyingPrice, setBuyingPrice] = useState("");
   const [sellingPrice, setSellingPrice] = useState("");
@@ -338,6 +355,7 @@ function ItemFormDialog({
       setFormSuccess(false);
       if (initial) {
         setName(initial.name);
+        setUnit(initial.unit || "pcs");
         setCategoryId(initial.category.id);
         setBuyingPrice(String(initial.buyingPrice));
         setSellingPrice(String(initial.sellingPrice));
@@ -345,6 +363,7 @@ function ItemFormDialog({
         setThreshold(String(initial.lowStockThreshold));
       } else {
         setName("");
+        setUnit("pcs");
         setCategoryId(categories[0]?.id ?? "");
         setBuyingPrice("");
         setSellingPrice("");
@@ -397,8 +416,8 @@ function ItemFormDialog({
 
       const buying = parseFloat(String(buyingPrice).replace(",", "."));
       const selling = parseFloat(String(sellingPrice).replace(",", "."));
-      const qty = parseInt(String(quantity), 10);
-      const lowStockThreshold = parseInt(String(threshold), 10);
+      const qty = parseFloat(String(quantity).replace(",", "."));
+      const lowStockThreshold = parseFloat(String(threshold).replace(",", "."));
 
       if (Number.isNaN(buying) || buying < 0) {
         setFormError("Buying price must be a valid number ≥ 0.");
@@ -408,21 +427,21 @@ function ItemFormDialog({
         setFormError("Selling price must be a valid number ≥ 0.");
         return;
       }
-      if (Number.isNaN(qty) || qty < 0 || !Number.isInteger(qty)) {
-        setFormError("Quantity must be a whole number ≥ 0.");
+      if (Number.isNaN(qty) || qty < 0) {
+        setFormError("Quantity must be a valid number ≥ 0.");
         return;
       }
       if (
         Number.isNaN(lowStockThreshold) ||
-        lowStockThreshold < 0 ||
-        !Number.isInteger(lowStockThreshold)
+        lowStockThreshold < 0
       ) {
-        setFormError("Low stock threshold must be a whole number ≥ 0.");
+        setFormError("Low stock threshold must be a valid number ≥ 0.");
         return;
       }
 
       const body = {
         name: name.trim(),
+        unit: unit.trim(),
         categoryId: cid,
         buyingPrice: buying,
         sellingPrice: selling,
@@ -495,6 +514,16 @@ function ItemFormDialog({
             />
           </div>
           <div>
+            <Label>Unit</Label>
+            <Input
+              value={unit}
+              onChange={(e) => setUnit(e.target.value)}
+              placeholder="pcs, m, cm, mm, kg, g, box…"
+              required
+              className="mt-1 rounded-xl"
+            />
+          </div>
+          <div>
             <Label>Category</Label>
             <Select
               value={categorySelectValue}
@@ -558,6 +587,7 @@ function ItemFormDialog({
             <Label>Quantity</Label>
             <Input
               type="number"
+              step="any"
               min={0}
               value={quantity}
               onChange={(e) => setQuantity(e.target.value)}
@@ -569,6 +599,7 @@ function ItemFormDialog({
             <Label>Low stock threshold</Label>
             <Input
               type="number"
+              step="any"
               min={0}
               value={threshold}
               onChange={(e) => setThreshold(e.target.value)}
@@ -627,7 +658,7 @@ function RestockDialog({
     setSaving(true);
     try {
       await api.post(`/items/${item.id}/restock`, {
-        quantity: Number(qty),
+        quantity: parseFloat(String(qty).replace(",", ".")),
         notes: notes || undefined,
       });
       onSaved();
@@ -651,7 +682,8 @@ function RestockDialog({
             <Label>Quantity to add</Label>
             <Input
               type="number"
-              min={1}
+              min={0.000001}
+              step="any"
               value={qty}
               onChange={(e) => setQty(e.target.value)}
               required

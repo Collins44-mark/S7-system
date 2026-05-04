@@ -21,7 +21,7 @@ export type ReceiptOrder = {
   paymentMethod: string;
   customer: { name: string; phone: string };
   orderItems: {
-    quantity: number;
+    quantity: string;
     unitSellPrice: string;
     lineTotal: string;
     item: { name: string };

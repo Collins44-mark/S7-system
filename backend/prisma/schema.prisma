@@ -69,12 +69,14 @@ model Category {
 model Item {
   id                String   @id @default(cuid())
   name              String
+  /** Free-form unit label (e.g. pcs, m, cm, mm, kg, g, box). */
+  unit              String   @default("pcs")
   categoryId        String
   category          Category @relation(fields: [categoryId], references: [id], onDelete: Restrict)
   buyingPrice       Decimal  @db.Decimal(14, 2)
   sellingPrice      Decimal  @db.Decimal(14, 2)
-  quantity          Int      @default(0)
-  lowStockThreshold Int      @default(10)
+  quantity          Decimal  @db.Decimal(18, 6)
+  lowStockThreshold Decimal  @db.Decimal(18, 6) @default(10)
   businessId        String
   business          Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
   orderItems        OrderItem[]
@@ -90,7 +92,7 @@ model RestockLog {
   id         String   @id @default(cuid())
   itemId     String
   item       Item     @relation(fields: [itemId], references: [id], onDelete: Cascade)
-  quantity   Int
+  quantity   Decimal  @db.Decimal(18, 6)
   notes      String?
   businessId String
   business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
@@ -145,7 +147,7 @@ model OrderItem {
   order         Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
   itemId        String
   item          Item    @relation(fields: [itemId], references: [id], onDelete: Restrict)
-  quantity      Int
+  quantity      Decimal @db.Decimal(18, 6)
   unitBuyPrice  Decimal @db.Decimal(14, 2)
   unitSellPrice Decimal @db.Decimal(14, 2)
   lineTotal     Decimal @db.Decimal(14, 2)

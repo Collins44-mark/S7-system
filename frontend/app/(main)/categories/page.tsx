@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useMemo, useState } from "react";
+import Link from "next/link";
 import { useI18n } from "@/lib/i18n-context";
 import { useSearch } from "@/lib/search-context";
 import { api } from "@/lib/api";
@@ -148,9 +149,10 @@ export default function CategoriesPage() {
             const Icon = iconFor(c.name);
             const colorClass = colors[i % colors.length];
             return (
-              <div
+              <Link
                 key={c.id}
-                className="glass card-hover cursor-default rounded-2xl p-5"
+                href={`/inventory?categoryId=${encodeURIComponent(c.id)}`}
+                className="glass card-hover rounded-2xl p-5 block"
               >
                 <div
                   className={`mb-3 flex h-10 w-10 items-center justify-center rounded-xl ${colorClass}`}
@@ -161,7 +163,7 @@ export default function CategoriesPage() {
                 <p className="mt-1 text-xs text-slate-500">
                   {c.itemCount} {t("categories.items")}
                 </p>
-              </div>
+              </Link>
             );
           })}
         </div>

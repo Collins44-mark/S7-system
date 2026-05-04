@@ -66,9 +66,9 @@ export class OrdersRepository {
           name: string;
           buyingPrice: Prisma.Decimal;
           sellingPrice: Prisma.Decimal;
-          quantity: number;
+          quantity: Prisma.Decimal;
         };
-        quantity: number;
+        quantity: Prisma.Decimal;
         unitBuy: Prisma.Decimal;
         unitSell: Prisma.Decimal;
         lineTotal: Prisma.Decimal;
@@ -86,7 +86,8 @@ export class OrdersRepository {
             line.itemId,
           );
         }
-        if (item.quantity < line.quantity) {
+        const lineQty = new Prisma.Decimal(String(line.quantity));
+        if (item.quantity.lt(lineQty)) {
           throw new CheckoutError(
             `Insufficient stock for ${item.name}`,
             'INSUFFICIENT_STOCK',
@@ -95,12 +96,12 @@ export class OrdersRepository {
         }
         const unitBuy = new Prisma.Decimal(item.buyingPrice.toString());
         const unitSell = new Prisma.Decimal(item.sellingPrice.toString());
-        const lineTotal = unitSell.mul(line.quantity);
-        const lineProfit = unitSell.sub(unitBuy).mul(line.quantity);
+        const lineTotal = unitSell.mul(lineQty);
+        const lineProfit = unitSell.sub(unitBuy).mul(lineQty);
         total = total.add(lineTotal);
         prepared.push({
           item,
-          quantity: line.quantity,
+          quantity: lineQty,
           unitBuy,
           unitSell,
           lineTotal,

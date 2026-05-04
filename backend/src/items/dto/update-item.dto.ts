@@ -1,6 +1,6 @@
 import {
-  IsInt,
   IsNotEmpty,
+  IsNumber,
   IsOptional,
   IsString,
   Min,
@@ -16,28 +16,35 @@ export class UpdateItemDto {
 
   @IsOptional()
   @IsString()
+  @MinLength(1)
+  unit?: string;
+
+  @IsOptional()
+  @IsString()
   @IsNotEmpty()
   categoryId?: string;
 
   @IsOptional()
   @Type(() => Number)
+  @IsNumber()
   @Min(0)
   buyingPrice?: number;
 
   @IsOptional()
   @Type(() => Number)
+  @IsNumber()
   @Min(0)
   sellingPrice?: number;
 
   @IsOptional()
   @Type(() => Number)
-  @IsInt()
+  @IsNumber()
   @Min(0)
   quantity?: number;
 
   @IsOptional()
   @Type(() => Number)
-  @IsInt()
+  @IsNumber()
   @Min(0)
   lowStockThreshold?: number;
 }

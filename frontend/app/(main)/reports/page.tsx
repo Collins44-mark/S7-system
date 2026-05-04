@@ -27,7 +27,7 @@ type Period = "daily" | "weekly" | "monthly";
 type SalesRes = {
   totalSales: string;
   totalProfit: string;
-  itemsSold: number;
+  itemsSold: string;
   start: string;
   end: string;
   period: string;
@@ -37,7 +37,7 @@ type TsRes = { dates: string[]; sales: string[]; profit: string[] };
 
 type Restock = {
   id: string;
-  quantity: number;
+  quantity: string;
   notes: string | null;
   createdAt: string;
   item: { name: string };

@@ -27,7 +27,8 @@ export class OrderLineDto {
   itemId: string;
 
   @Type(() => Number)
-  @Min(1)
+  @IsNumber()
+  @Min(0.000001)
   quantity: number;
 }
 

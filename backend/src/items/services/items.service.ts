@@ -17,22 +17,26 @@ export class ItemsService {
     return new Prisma.Decimal(String(n));
   }
 
-  /** JSON must carry prices as plain strings (never Prisma Decimal JSON blobs). */
+  /** JSON must carry decimals as plain strings (never Prisma Decimal JSON blobs). */
   private withDecimalStrings<
     T extends {
       buyingPrice: { toString(): string };
       sellingPrice: { toString(): string };
+      quantity: { toString(): string };
+      lowStockThreshold: { toString(): string };
     },
   >(row: T) {
     return {
       ...row,
       buyingPrice: row.buyingPrice.toString(),
       sellingPrice: row.sellingPrice.toString(),
+      quantity: row.quantity.toString(),
+      lowStockThreshold: row.lowStockThreshold.toString(),
     };
   }
 
-  async list(user: BusinessPrincipal) {
-    const rows = await this.items.findAllWithCategory(user.sub);
+  async list(user: BusinessPrincipal, categoryId?: string) {
+    const rows = await this.items.findAllWithCategory(user.sub, categoryId);
     return rows.map((row) => this.withDecimalStrings(row));
   }
 
@@ -44,11 +48,12 @@ export class ItemsService {
     const row = await this.items.create({
       businessId: user.sub,
       name: dto.name.trim(),
+      unit: dto.unit.trim(),
       categoryId: dto.categoryId,
       buyingPrice: this.dec(dto.buyingPrice),
       sellingPrice: this.dec(dto.sellingPrice),
-      quantity: dto.quantity,
-      lowStockThreshold: dto.lowStockThreshold,
+      quantity: this.dec(dto.quantity),
+      lowStockThreshold: this.dec(dto.lowStockThreshold),
     });
     return this.withDecimalStrings(row);
   }
@@ -66,6 +71,7 @@ export class ItemsService {
     }
     const row = await this.items.update(id, {
       ...(dto.name != null ? { name: dto.name.trim() } : {}),
+      ...(dto.unit != null ? { unit: dto.unit.trim() } : {}),
       ...(dto.categoryId != null ? { categoryId: dto.categoryId } : {}),
       ...(dto.buyingPrice != null
         ? { buyingPrice: this.dec(dto.buyingPrice) }
@@ -73,9 +79,9 @@ export class ItemsService {
       ...(dto.sellingPrice != null
         ? { sellingPrice: this.dec(dto.sellingPrice) }
         : {}),
-      ...(dto.quantity != null ? { quantity: dto.quantity } : {}),
+      ...(dto.quantity != null ? { quantity: this.dec(dto.quantity) } : {}),
       ...(dto.lowStockThreshold != null
-        ? { lowStockThreshold: dto.lowStockThreshold }
+        ? { lowStockThreshold: this.dec(dto.lowStockThreshold) }
         : {}),
     });
     return this.withDecimalStrings(row);
@@ -103,7 +109,7 @@ export class ItemsService {
     const row = await this.items.restockWithLog({
       itemId: id,
       businessId: user.sub,
-      quantity,
+      quantity: this.dec(quantity),
       notes: notes ?? null,
     });
     return this.withDecimalStrings(row);

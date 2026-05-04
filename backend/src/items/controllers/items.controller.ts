@@ -6,6 +6,7 @@ import {
   Param,
   Patch,
   Post,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
@@ -27,8 +28,11 @@ export class ItemsController {
   constructor(private readonly items: ItemsService) {}
 
   @Get()
-  list(@CurrentUser() user: BusinessPrincipal) {
-    return this.items.list(user);
+  list(
+    @CurrentUser() user: BusinessPrincipal,
+    @Query('categoryId') categoryId?: string,
+  ) {
+    return this.items.list(user, categoryId);
   }
 
   @Post()

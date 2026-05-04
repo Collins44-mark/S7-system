@@ -6,9 +6,12 @@ import { Prisma } from '../../prisma/generated-imports';
 export class ItemsRepository {
   constructor(private readonly prisma: PrismaService) {}
 
-  findAllWithCategory(businessId: string) {
+  findAllWithCategory(businessId: string, categoryId?: string) {
     return this.prisma.item.findMany({
-      where: { businessId },
+      where: {
+        businessId,
+        ...(categoryId ? { categoryId } : {}),
+      },
       include: { category: true },
       orderBy: { name: 'asc' },
     });
@@ -29,11 +32,12 @@ export class ItemsRepository {
   create(data: {
     businessId: string;
     name: string;
+    unit: string;
     categoryId: string;
     buyingPrice: Prisma.Decimal;
     sellingPrice: Prisma.Decimal;
-    quantity: number;
-    lowStockThreshold: number;
+    quantity: Prisma.Decimal;
+    lowStockThreshold: Prisma.Decimal;
   }) {
     return this.prisma.item.create({
       data,
@@ -45,11 +49,12 @@ export class ItemsRepository {
     id: string,
     data: {
       name?: string;
+      unit?: string;
       categoryId?: string;
       buyingPrice?: Prisma.Decimal;
       sellingPrice?: Prisma.Decimal;
-      quantity?: number;
-      lowStockThreshold?: number;
+      quantity?: Prisma.Decimal;
+      lowStockThreshold?: Prisma.Decimal;
     },
   ) {
     return this.prisma.item.update({
@@ -66,7 +71,7 @@ export class ItemsRepository {
   restockWithLog(params: {
     itemId: string;
     businessId: string;
-    quantity: number;
+    quantity: Prisma.Decimal;
     notes: string | null;
   }) {
     return this.prisma.$transaction(async (tx) => {

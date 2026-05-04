@@ -20,11 +20,11 @@ export class ReportsService {
     let lowStockCount = 0;
 
     for (const it of items) {
-      totalUnits += it.quantity;
+      totalUnits += Number(it.quantity.toString());
       stockValue = stockValue.add(
         new Prisma.Decimal(it.buyingPrice.toString()).mul(it.quantity),
       );
-      if (it.quantity <= it.lowStockThreshold) {
+      if (it.quantity.lte(it.lowStockThreshold)) {
         lowStockCount += 1;
       }
     }
@@ -79,7 +79,7 @@ export class ReportsService {
       end: end.toISOString(),
       totalSales: salesSum._sum.totalAmount?.toString() ?? '0',
       totalProfit: itemAgg._sum.lineProfit?.toString() ?? '0',
-      itemsSold: itemAgg._sum.quantity ?? 0,
+      itemsSold: itemAgg._sum.quantity?.toString() ?? '0',
     };
   }
 
