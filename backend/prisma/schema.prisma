@@ -74,6 +74,7 @@ model Business {
   restockLogs RestockLog[]
   restocks    Restock[]
   accountEntries AccountEntry[]
+  expenses    Expense[]
 }
 
 model Category {
@@ -251,4 +252,16 @@ model AccountEntry {
   @@index([customerId])
   @@index([businessId])
   @@index([orderId])
+}
+
+model Expense {
+  id         String   @id @default(cuid())
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  amount     Decimal  @db.Decimal(14, 2)
+  note       String?
+  spentAt    DateTime
+  createdAt  DateTime @default(now())
+
+  @@index([businessId, spentAt])
 }

@@ -6,6 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import {
   BarChart2,
   Box,
+  Wallet,
   Grid,
   LayoutDashboard,
   LogOut,
@@ -38,6 +39,7 @@ const nav = [
   { href: "/categories", navKey: "categories", icon: Grid },
   { href: "/orders", navKey: "orders", icon: ShoppingCart },
   { href: "/customers", navKey: "customers", icon: Users },
+  { href: "/expenses", navKey: "expenses", icon: Wallet },
   { href: "/reports", navKey: "reports", icon: BarChart2 },
   { href: "/settings", navKey: "settings", icon: Settings },
 ] as const;

@@ -29,6 +29,14 @@ function slipAmount(value: string | number) {
   }).format(parsed);
 }
 
+function owedAmount(total: string, paid: string, balance: string) {
+  const totalN = parseAmount(total) ?? 0;
+  const paidN = parseAmount(paid) ?? 0;
+  const balanceN = parseAmount(balance) ?? 0;
+  if (balanceN > 0) return balanceN;
+  return Math.max(0, Math.round((totalN - paidN) * 100) / 100);
+}
+
 function slipQty(value: string) {
   const parsed = parseAmount(value);
   if (parsed == null) return value;
@@ -52,12 +60,16 @@ function slipHtml(input: {
   const receiptNo = input.order.receiptNumber
     ? shortReceiptNumber(input.order.receiptNumber)
     : input.order.orderNumber;
-  const balance = parseAmount(input.order.balance) ?? 0;
+  const owed = owedAmount(
+    input.order.totalAmount,
+    input.order.amountPaid,
+    input.order.balance,
+  );
   const extras =
-    balance > 0
+    owed > 0
       ? [
           { label: input.t("receipt.paid"), value: slipAmount(input.order.amountPaid) },
-          { label: input.t("receipt.balance"), value: slipAmount(input.order.balance) },
+          { label: input.t("receipt.debt"), value: slipAmount(owed) },
         ]
       : [];
   return thermalReceiptPage(input.paperMm, {
@@ -118,6 +130,7 @@ async function downloadReceiptPdf(input: {
     total: string;
     paid: string;
     balance: string;
+    debt: string;
     method: string;
     thanks: string;
   };
@@ -181,8 +194,11 @@ async function downloadReceiptPdf(input: {
     y += line;
   };
   row(input.labels.total, money(input.totalAmount), true);
-  row(input.labels.paid, money(input.amountPaid));
-  row(input.labels.balance, money(input.balance));
+  const owed = owedAmount(input.totalAmount, input.amountPaid, input.balance);
+  if (owed > 0) {
+    row(input.labels.paid, money(input.amountPaid));
+    row(input.labels.debt, slipAmount(owed), true);
+  }
   row(input.labels.method, input.paymentMethodLabel);
 
   y += 2;
@@ -362,15 +378,19 @@ export function ReceiptDialog({
                 <span>{t("receipt.total")}:</span>
                 <span>{slipAmount(order.totalAmount)}</span>
               </div>
-              {(parseAmount(order.balance) ?? 0) > 0 ? (
+              {owedAmount(order.totalAmount, order.amountPaid, order.balance) > 0 ? (
                 <>
                   <div className="flex justify-end gap-8">
                     <span>{t("receipt.paid")}:</span>
                     <span>{slipAmount(order.amountPaid)}</span>
                   </div>
                   <div className="flex justify-end gap-8">
-                    <span>{t("receipt.balance")}:</span>
-                    <span>{slipAmount(order.balance)}</span>
+                    <span>{t("receipt.debt")}:</span>
+                    <span>
+                      {slipAmount(
+                        owedAmount(order.totalAmount, order.amountPaid, order.balance),
+                      )}
+                    </span>
                   </div>
                 </>
               ) : null}
@@ -434,6 +454,7 @@ export function ReceiptDialog({
                       total: t("receipt.total"),
                       paid: t("receipt.paid"),
                       balance: t("receipt.balance"),
+                      debt: t("receipt.debt"),
                       method: t("receipt.method"),
                       thanks,
                     },

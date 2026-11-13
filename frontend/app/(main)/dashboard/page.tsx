@@ -15,8 +15,8 @@ import {
   AlertTriangle,
   DollarSign,
   Inbox,
-  Package,
   TrendingUp,
+  Wallet,
 } from "lucide-react";
 
 type DashboardRes = {
@@ -24,6 +24,7 @@ type DashboardRes = {
   totalUnitsInStock: number;
   stockValue: string;
   totalProfitAllTime: string;
+  expensesTotal: string;
   lowStockCount: number;
   recentOrders: {
     id: string;
@@ -134,13 +135,15 @@ export default function DashboardPage() {
               <div className={`${DASH_CARD} card-hover p-4 sm:p-5`}>
                 <div className="mb-3 flex items-center justify-between gap-2">
                   <span className="text-xs font-medium uppercase tracking-wide text-slate-500">
-                    {t("dashboard.skus")}
+                    {t("dashboard.expenses")}
                   </span>
-                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-100">
-                    <Package className="h-4 w-4 text-blue-600" />
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-red-100">
+                    <Wallet className="h-4 w-4 text-red-600" />
                   </div>
                 </div>
-                <p className="text-2xl font-bold text-slate-800">{dash.totalItemSkus}</p>
+                <p className="text-2xl font-bold text-red-600">
+                  {money(dash.expensesTotal ?? 0)}
+                </p>
               </div>
               <div className={`${DASH_CARD} card-hover p-4 sm:p-5`}>
                 <div className="mb-3 flex items-center justify-between gap-2">

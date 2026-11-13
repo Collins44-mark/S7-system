@@ -193,7 +193,7 @@ export default function SettingsPage() {
 
   if (loading && !profile) {
     return (
-      <div className="animate-in-page max-w-lg space-y-4">
+      <div className="animate-in-page space-y-4">
         <h1 className="text-2xl font-bold text-slate-800">{t("settings.title")}</h1>
         <PageLoading label={t("settings.loading")} />
       </div>
@@ -202,7 +202,7 @@ export default function SettingsPage() {
 
   if (error && !profile) {
     return (
-      <div className="animate-in-page max-w-lg space-y-4">
+      <div className="animate-in-page space-y-4">
         <h1 className="text-2xl font-bold text-slate-800">{t("settings.title")}</h1>
         <ErrorBanner message={error} onRetry={() => refetch()} />
       </div>
@@ -210,11 +210,13 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="animate-in-page max-w-2xl space-y-6">
+    <div className="animate-in-page space-y-6">
       {error && <ErrorBanner message={error} onRetry={() => refetch()} />}
       <h1 className="text-2xl font-bold text-slate-800">{t("settings.title")}</h1>
 
-      <div className="glass rounded-2xl p-6">
+      <div className="grid grid-cols-1 items-start gap-6 xl:grid-cols-2">
+      <div className="space-y-6">
+      <div className="glass rounded-2xl p-4 sm:p-6">
         <h3 className="mb-3 font-semibold text-slate-700">
           {t("settings.languageSection")}
         </h3>
@@ -226,7 +228,7 @@ export default function SettingsPage() {
               if (v === "en" || v === "sw") setLocale(v as Locale);
             }}
           >
-            <SelectTrigger className="w-48 rounded-xl">
+            <SelectTrigger className="w-full rounded-xl sm:w-48">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -237,7 +239,7 @@ export default function SettingsPage() {
         </div>
       </div>
 
-      <div className="glass rounded-2xl p-6">
+      <div className="glass rounded-2xl p-4 sm:p-6">
         <h3 className="mb-2 font-semibold text-slate-700">
           {t("settings.printersTitle")}
         </h3>
@@ -251,6 +253,7 @@ export default function SettingsPage() {
         >
           {t("settings.printersScan")}
         </Button>
+        <div className="overflow-x-auto">
         <Table>
           <TableHeader>
             <TableRow>
@@ -283,6 +286,7 @@ export default function SettingsPage() {
             </TableRow>
           </TableBody>
         </Table>
+        </div>
         <p className="mt-3 text-xs text-slate-500">
           {t("settings.printersAfterPrintHint")}
         </p>
@@ -313,12 +317,13 @@ export default function SettingsPage() {
           </Button>
         </div>
       </div>
+      </div>
 
-      <div className="glass rounded-2xl p-6">
+      <div className="glass min-w-0 rounded-2xl p-4 sm:p-6">
         <h3 className="mb-1 font-semibold text-slate-700">{t("settings.userProfile")}</h3>
         <p className="mb-4 text-xs text-slate-500">{t("settings.yourNameHint")}</p>
-        <form onSubmit={save} className="space-y-4">
-          <div>
+        <form onSubmit={save} className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div className="sm:col-span-2">
             <Label htmlFor="ownerName">{t("settings.yourName")}</Label>
             <Input
               id="ownerName"
@@ -328,11 +333,11 @@ export default function SettingsPage() {
             />
           </div>
 
-          <div className="border-t border-slate-200 pt-6">
-            <h3 className="mb-4 font-semibold text-slate-700">{t("settings.profile")}</h3>
+          <div className="border-t border-slate-200 pt-6 sm:col-span-2">
+            <h3 className="font-semibold text-slate-700">{t("settings.profile")}</h3>
           </div>
           {saveError && (
-            <p className="text-sm text-red-600" role="alert">
+            <p className="text-sm text-red-600 sm:col-span-2" role="alert">
               {saveError}
             </p>
           )}
@@ -345,7 +350,7 @@ export default function SettingsPage() {
               className="mt-1 rounded-xl bg-slate-50 font-mono"
             />
           </div>
-          <div>
+          <div className="sm:col-span-2">
             <Label>{t("settings.logo")}</Label>
             <p className="mt-1 text-xs text-slate-500">{t("settings.logoHint")}</p>
             <div className="mt-3 flex items-center gap-4">
@@ -439,7 +444,7 @@ export default function SettingsPage() {
               className="mt-1 rounded-xl"
             />
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:col-span-2 sm:grid-cols-2">
             <div>
               <Label htmlFor="tin">{t("settings.tin")}</Label>
               <Input
@@ -460,7 +465,7 @@ export default function SettingsPage() {
             </div>
           </div>
 
-          <div className="border-t border-slate-200 pt-6">
+          <div className="border-t border-slate-200 pt-6 sm:col-span-2">
             <h3 className="mb-4 font-semibold text-slate-700">
               {t("settings.posSection")}
             </h3>
@@ -475,7 +480,7 @@ export default function SettingsPage() {
                   value={paperMm}
                   placeholder={t("settings.receiptWidthAuto")}
                   onChange={(e) => setPaperMm(e.target.value)}
-                  className="mt-1 max-w-[12rem] rounded-xl"
+                  className="mt-1 w-full max-w-xs rounded-xl"
                 />
                 <p className="mt-1 text-xs text-slate-500">{t("settings.receiptWidthHint")}</p>
               </div>
@@ -499,15 +504,16 @@ export default function SettingsPage() {
             </div>
           </div>
 
-          {msg && <p className="text-sm text-emerald-700">{msg}</p>}
+          {msg && <p className="text-sm text-emerald-700 sm:col-span-2">{msg}</p>}
           <Button
             type="submit"
             disabled={saving}
-            className="btn-primary-gradient rounded-xl text-white"
+            className="btn-primary-gradient w-full rounded-xl text-white sm:col-span-2 sm:w-auto"
           >
             {saving ? t("common.saving") : t("common.save")}
           </Button>
         </form>
+      </div>
       </div>
     </div>
   );

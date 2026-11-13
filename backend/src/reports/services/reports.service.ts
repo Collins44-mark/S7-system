@@ -30,6 +30,7 @@ export class ReportsService {
     }
 
     const profitAgg = await this.reports.aggregateProfitAllTime(businessPk);
+    const expenseAgg = await this.reports.aggregateExpensesAllTime(businessPk);
 
     const recentOrders = await this.reports.findRecentOrders(businessPk, 4);
 
@@ -38,6 +39,7 @@ export class ReportsService {
       totalUnitsInStock: totalUnits,
       stockValue: stockValue.toString(),
       totalProfitAllTime: profitAgg._sum.lineProfit?.toString() ?? '0',
+      expensesTotal: expenseAgg._sum.amount?.toString() ?? '0',
       lowStockCount,
       recentOrders,
     };

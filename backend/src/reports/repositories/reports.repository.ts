@@ -32,6 +32,13 @@ export class ReportsRepository {
     });
   }
 
+  aggregateExpensesAllTime(businessId: string) {
+    return this.prisma.expense.aggregate({
+      where: { businessId },
+      _sum: { amount: true },
+    });
+  }
+
   aggregateProfitAllTime(businessId: string) {
     return this.prisma.orderItem.aggregate({
       where: {

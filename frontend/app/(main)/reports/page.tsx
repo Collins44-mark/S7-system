@@ -75,6 +75,7 @@ function qtyLabel(value: string | null) {
 type ReportPayload = {
   sales: SalesRes;
   restocks: Restock[];
+  expensesTotal: string;
 };
 
 export default function ReportsPage() {
@@ -98,9 +99,13 @@ export default function ReportsPage() {
       api.get<SalesRes>(salesUrl),
       api.get<Restock[]>(restockUrl),
     ]);
+    const expenses = await api.get<{ total: string }>("/expenses", {
+      params: { from: s.data.start, to: s.data.end },
+    });
     return {
       sales: s.data,
       restocks: r.data,
+      expensesTotal: expenses.data.total,
     };
   }, [period, custom, from, to]);
 
@@ -271,6 +276,14 @@ export default function ReportsPage() {
           </span>
           <p className="mt-2 text-2xl font-bold text-slate-800">
             {sales.itemsSold}
+          </p>
+        </div>
+        <div className="glass card-hover rounded-2xl p-5">
+          <span className="text-xs font-medium uppercase text-slate-500">
+            {t("reports.expenses")}
+          </span>
+          <p className="mt-2 text-2xl font-bold text-red-600">
+            {money(data?.expensesTotal ?? 0)}
           </p>
         </div>
       </div>
