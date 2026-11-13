@@ -1,0 +1,2 @@
+ALTER TABLE "Business" ADD COLUMN "tin" TEXT;
+ALTER TABLE "Business" ADD COLUMN "vrn" TEXT;

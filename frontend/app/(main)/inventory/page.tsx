@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useI18n } from "@/lib/i18n-context";
 import { useSearch } from "@/lib/search-context";
 import { api } from "@/lib/api";
-import { money, parseAmount } from "@/lib/format";
+import { formatAmountInput, money, parseAmount } from "@/lib/format";
 import { useAsyncData } from "@/hooks/use-async-data";
 import { ErrorBanner } from "@/components/error-banner";
 import { PageLoading } from "@/components/page-loading";
@@ -60,9 +60,9 @@ type InventoryPayload = { items: Item[]; categories: Category[] };
 
 function coercePriceCell(raw: unknown): string {
   const n = parseAmount(raw);
-  if (n != null) return n.toFixed(2);
+  if (n != null) return formatAmountInput(n);
   if (typeof raw === "string" && raw.trim()) return raw.trim();
-  return "0.00";
+  return "0";
 }
 
 function normalizeItemFromApi(raw: unknown): Item {
@@ -106,6 +106,7 @@ export default function InventoryPage() {
   const searchParams = useSearchParams();
   const selectedCategoryId = (searchParams.get("categoryId") ?? "").trim();
   const [addOpen, setAddOpen] = useState(false);
+  const [bulkOpen, setBulkOpen] = useState(false);
   const [editItem, setEditItem] = useState<Item | null>(null);
   const [restockItem, setRestockItem] = useState<Item | null>(null);
 
@@ -138,6 +139,24 @@ export default function InventoryPage() {
         i.unit.toLowerCase().includes(qInv),
     );
   }, [items, qInv, selectedCategoryId]);
+
+  const pageSizes = [10, 40, 70, 100] as const;
+  const [pageSize, setPageSize] = useState<(typeof pageSizes)[number]>(10);
+  const [page, setPage] = useState(1);
+
+  useEffect(() => {
+    setPage(1);
+  }, [qInv, selectedCategoryId, pageSize]);
+
+  const pageCount = Math.max(1, Math.ceil(filteredItems.length / pageSize));
+  const currentPage = Math.min(page, pageCount);
+  const pageItems = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return filteredItems.slice(start, start + pageSize);
+  }, [filteredItems, currentPage, pageSize]);
+  const rangeFrom =
+    filteredItems.length === 0 ? 0 : (currentPage - 1) * pageSize + 1;
+  const rangeTo = Math.min(currentPage * pageSize, filteredItems.length);
 
   async function remove(id: string) {
     if (!confirm(t("inventory.deleteConfirm"))) return;
@@ -175,13 +194,22 @@ export default function InventoryPage() {
       {error && <ErrorBanner message={error} onRetry={() => refetch()} />}
       <div className="flex flex-wrap items-center justify-between gap-4">
         <h1 className="text-2xl font-bold text-slate-800">{t("inventory.title")}</h1>
-        <Button
-          className="btn-primary-gradient rounded-xl text-white"
-          onClick={() => setAddOpen(true)}
-        >
-          <Plus className="mr-2 h-4 w-4" />
-          {t("inventory.addItem")}
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button
+            className="btn-primary-gradient rounded-xl text-white"
+            onClick={() => setBulkOpen(true)}
+            disabled={items.length === 0}
+          >
+            {t("inventory.restock")}
+          </Button>
+          <Button
+            className="btn-primary-gradient rounded-xl text-white"
+            onClick={() => setAddOpen(true)}
+          >
+            <Plus className="mr-2 h-4 w-4" />
+            {t("inventory.addItem")}
+          </Button>
+        </div>
       </div>
       {categories.length === 0 && (
         <ErrorBanner message={t("inventory.addCategoryFirst")} />
@@ -218,7 +246,7 @@ export default function InventoryPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filteredItems.map((item) => {
+            {pageItems.map((item) => {
               const qty = parseAmount(item.quantity) ?? 0;
               const lowThreshold = parseAmount(item.lowStockThreshold) ?? 0;
               const low = qty <= lowThreshold;
@@ -279,6 +307,61 @@ export default function InventoryPage() {
             })}
           </TableBody>
         </Table>
+        {filteredItems.length > 0 && (
+          <div className="flex flex-col gap-3 border-t border-slate-100 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-xs text-slate-500">
+              {t("inventory.showing", {
+                from: rangeFrom,
+                to: rangeTo,
+                total: filteredItems.length,
+              })}
+            </p>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-xs text-slate-500">{t("inventory.perPage")}</span>
+              <Select
+                value={String(pageSize)}
+                onValueChange={(v) => {
+                  const n = Number(v);
+                  if (n === 10 || n === 40 || n === 70 || n === 100) setPageSize(n);
+                }}
+              >
+                <SelectTrigger className="h-9 w-[5.5rem] rounded-xl" aria-label={t("inventory.perPage")}>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {pageSizes.map((n) => (
+                    <SelectItem key={n} value={String(n)}>
+                      {n}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                className="rounded-xl"
+                disabled={currentPage <= 1}
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+              >
+                {t("inventory.prev")}
+              </Button>
+              <span className="text-xs text-slate-600">
+                {t("inventory.pageOf", { page: currentPage, pages: pageCount })}
+              </span>
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                className="rounded-xl"
+                disabled={currentPage >= pageCount}
+                onClick={() => setPage((p) => Math.min(pageCount, p + 1))}
+              >
+                {t("inventory.next")}
+              </Button>
+            </div>
+          </div>
+        )}
         {items.length === 0 && (
           <div className="p-4">
             <EmptyState
@@ -312,6 +395,14 @@ export default function InventoryPage() {
         onSaved={() => {
           setEditItem(null);
           void refetch();
+        }}
+      />
+      <BulkRestockDialog
+        open={bulkOpen}
+        items={items}
+        onClose={() => setBulkOpen(false)}
+        onSaved={async () => {
+          await refetch();
         }}
       />
       <RestockDialog
@@ -626,6 +717,131 @@ function ItemFormDialog({
             className="btn-primary-gradient w-full rounded-xl text-white"
           >
             {saving ? "Saving…" : initial ? "Save" : "Add item"}
+          </Button>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function BulkRestockDialog({
+  open,
+  items,
+  onClose,
+  onSaved,
+}: {
+  open: boolean;
+  items: Item[];
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const { t } = useI18n();
+  const [search, setSearch] = useState("");
+  const [lines, setLines] = useState<Record<string, string>>({});
+  const [notes, setNotes] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    setSearch("");
+    setLines({});
+    setNotes("");
+    setError(null);
+  }, [open]);
+
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return items;
+    return items.filter(
+      (i) =>
+        i.name.toLowerCase().includes(q) || i.unit.toLowerCase().includes(q),
+    );
+  }, [items, search]);
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    const jobs = Object.entries(lines)
+      .map(([id, raw]) => ({
+        id,
+        qty: parseFloat(String(raw).replace(",", ".")),
+      }))
+      .filter((row) => Number.isFinite(row.qty) && row.qty > 0);
+    if (!jobs.length) {
+      setError(t("inventory.bulkNone"));
+      return;
+    }
+    setSaving(true);
+    setError(null);
+    try {
+      await api.post("/items/restock-bulk", {
+        notes: notes.trim() || undefined,
+        items: jobs.map((row) => ({ itemId: row.id, quantity: row.qty })),
+      });
+      await onSaved();
+      onClose();
+    } catch (err) {
+      setError(getApiErrorMessage(err));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
+      <DialogContent className="glass max-h-[90vh] max-w-lg overflow-y-auto rounded-2xl">
+        <DialogHeader>
+          <DialogTitle>{t("inventory.bulkRestockTitle")}</DialogTitle>
+        </DialogHeader>
+        <form onSubmit={submit} className="space-y-4">
+          {error && <p className="text-sm text-red-600">{error}</p>}
+          <Input
+            placeholder={t("inventory.bulkSearch")}
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="rounded-xl"
+          />
+          <div className="max-h-72 space-y-2 overflow-y-auto pr-1">
+            {filtered.map((it) => (
+              <div
+                key={it.id}
+                className="flex items-center justify-between gap-3 rounded-xl border border-slate-100 bg-slate-50/80 p-3"
+              >
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium">{it.name}</p>
+                  <p className="text-xs text-slate-500">
+                    {it.quantity} {it.unit}
+                  </p>
+                </div>
+                <Input
+                  type="number"
+                  min={0}
+                  step="any"
+                  value={lines[it.id] ?? ""}
+                  onChange={(e) =>
+                    setLines((prev) => ({ ...prev, [it.id]: e.target.value }))
+                  }
+                  placeholder={t("inventory.bulkQty")}
+                  aria-label={`${t("inventory.bulkQty")} ${it.name}`}
+                  className="h-9 w-24 rounded-xl text-center"
+                />
+              </div>
+            ))}
+          </div>
+          <div>
+            <Label>{t("inventory.bulkNotes")}</Label>
+            <Input
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              className="mt-1 rounded-xl"
+            />
+          </div>
+          <Button
+            type="submit"
+            disabled={saving}
+            className="btn-primary-gradient w-full rounded-xl text-white"
+          >
+            {saving ? t("common.saving") : t("inventory.bulkConfirm")}
           </Button>
         </form>
       </DialogContent>

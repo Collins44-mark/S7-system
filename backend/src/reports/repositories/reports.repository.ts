@@ -63,7 +63,7 @@ export class ReportsRepository {
   aggregateOrderItemsForOrders(orderWhere: Prisma.OrderWhereInput) {
     return this.prisma.orderItem.aggregate({
       where: { order: orderWhere },
-      _sum: { lineProfit: true, quantity: true },
+      _sum: { lineProfit: true, lineTotal: true, quantity: true },
     });
   }
 
@@ -99,15 +99,19 @@ export class ReportsRepository {
   }
 
   findRestocks(businessId: string, from?: Date, to?: Date) {
-    const where: Prisma.RestockLogWhereInput = { businessId };
+    const where: Prisma.RestockWhereInput = { businessId };
     if (from && to) {
       where.createdAt = { gte: from, lte: to };
     }
-    return (this.prisma as PrismaClient).restockLog.findMany({
+    return (this.prisma as PrismaClient).restock.findMany({
       where,
       orderBy: { createdAt: 'desc' },
-      include: { item: true },
-      take: 200,
+      include: {
+        logs: {
+          include: { item: { select: { name: true, unit: true } } },
+          orderBy: { createdAt: 'asc' },
+        },
+      },
     });
   }
 }

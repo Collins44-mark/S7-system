@@ -11,10 +11,18 @@ export type AuthSession =
       /** Public code e.g. S7-0001 */
       businessId: string;
       businessName: string;
+      ownerName?: string | null;
       /** Internal UUID */
       id: string;
+      phone?: string | null;
+      email?: string | null;
+      address?: string | null;
+      poBox?: string | null;
+      tin?: string | null;
+      vrn?: string | null;
+      logoDataUrl?: string | null;
       /** From GET/PATCH /auth/me — thermal receipt width (mm). */
-      receiptPaperWidthMm?: number;
+      receiptPaperWidthMm?: number | null;
       /** From GET/PATCH /auth/me — open print dialog after new sale. */
       printReceiptAfterSale?: boolean;
     };

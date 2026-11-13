@@ -18,6 +18,7 @@ const PAYMENT_VALUES: PaymentMethod[] = [
   'MPESA',
   'TIGO_PESA',
   'BANK',
+  'ACCOUNT',
 ];
 
 export class OrderLineDto {

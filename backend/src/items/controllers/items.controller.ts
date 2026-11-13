@@ -18,6 +18,7 @@ import {
 import { CreateItemDto } from '../dto/create-item.dto';
 import { UpdateItemDto } from '../dto/update-item.dto';
 import { RestockDto } from '../dto/restock.dto';
+import { BulkRestockDto } from '../dto/bulk-restock.dto';
 import { Roles } from '../../auth/decorators/roles.decorator';
 import { RolesGuard } from '../../auth/guards/roles.guard';
 
@@ -52,6 +53,14 @@ export class ItemsController {
   @Delete(':id')
   remove(@CurrentUser() user: BusinessPrincipal, @Param('id') id: string) {
     return this.items.remove(user, id);
+  }
+
+  @Post('restock-bulk')
+  restockBulk(
+    @CurrentUser() user: BusinessPrincipal,
+    @Body() dto: BulkRestockDto,
+  ) {
+    return this.items.restockBulk(user, dto.notes, dto.items);
   }
 
   @Post(':id/restock')

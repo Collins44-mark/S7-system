@@ -16,6 +16,12 @@ enum PaymentMethod {
   MPESA
   TIGO_PESA
   BANK
+  ACCOUNT
+}
+
+enum AccountEntryKind {
+  DEPOSIT
+  PURCHASE
 }
 
 enum OrderStatus {
@@ -35,12 +41,26 @@ model Business {
   uniqueCode   String   @unique
   passwordHash String
   isActive     Boolean  @default(true)
-  /** Monotonic counter for customer receipts (RCT-000001). */
+  /** Monotonic counter for customer receipts (RCT-001). */
   lastReceiptSequence Int      @default(0)
-  /** POS receipt width (mm), 50–60 typical for thermal rolls. */
-  receiptPaperWidthMm  Int      @default(58)
+  /** Monotonic counter for orders (ORD-001) per business. */
+  lastOrderSequence   Int      @default(0)
+  /** Monotonic counter for restock batches (RST-01) per business. */
+  lastRestockSequence Int      @default(0)
+  /** POS receipt width (mm). Null means fit the receipt printer’s paper. */
+  receiptPaperWidthMm  Int?
   /** If true, browser print dialog opens after a completed sale (when receipt is shown). */
   printReceiptAfterSale Boolean @default(true)
+  phone       String?
+  email       String?
+  address     String?
+  poBox       String?
+  tin         String?
+  vrn         String?
+  /** Person using the store. Shown in the dashboard greeting, not the company name. */
+  ownerName   String?
+  /** Small image as a data URL, shown on the sidebar and receipts. */
+  logoDataUrl String?  @db.Text
   /** Optional note: e.g. printer IP:9100 for staff reference (browser cannot open raw TCP). */
   receiptPrinterAddress String?
   createdAt    DateTime @default(now())
@@ -52,6 +72,8 @@ model Business {
   orders      Order[]
   payments    Payment[]
   restockLogs RestockLog[]
+  restocks    Restock[]
+  accountEntries AccountEntry[]
 }
 
 model Category {
@@ -88,18 +110,36 @@ model Item {
   @@index([categoryId])
 }
 
-model RestockLog {
-  id         String   @id @default(cuid())
-  itemId     String
-  item       Item     @relation(fields: [itemId], references: [id], onDelete: Cascade)
-  quantity   Decimal  @db.Decimal(18, 6)
-  notes      String?
+model Restock {
+  id         String       @id @default(cuid())
   businessId String
-  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
-  createdAt  DateTime @default(now())
+  business   Business     @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  sequence   Int
+  notes      String?
+  createdAt  DateTime     @default(now())
+  logs       RestockLog[]
+
+  @@unique([businessId, sequence])
+  @@index([businessId])
+}
+
+model RestockLog {
+  id             String   @id @default(cuid())
+  restockId      String
+  restock        Restock  @relation(fields: [restockId], references: [id], onDelete: Cascade)
+  itemId         String
+  item           Item     @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  quantity       Decimal  @db.Decimal(18, 6)
+  quantityBefore Decimal? @db.Decimal(18, 6)
+  quantityAfter  Decimal? @db.Decimal(18, 6)
+  notes          String?
+  businessId     String
+  business       Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  createdAt      DateTime @default(now())
 
   @@index([businessId])
   @@index([itemId])
+  @@index([restockId])
 }
 
 model Customer {
@@ -110,6 +150,9 @@ model Customer {
   business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
   orders     Order[]
   debts      Debt[]
+  /** Money the customer has left with the shop, taken off later purchases. */
+  creditBalance Decimal @default(0) @db.Decimal(14, 2)
+  accountEntries AccountEntry[]
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
@@ -119,7 +162,7 @@ model Customer {
 
 model Order {
   id            String        @id @default(cuid())
-  orderNumber   String        @unique
+  orderNumber   String
   /** Sequential customer receipt id per business, e.g. RCT-000001 */
   receiptNumber String?
   customerId    String
@@ -134,9 +177,11 @@ model Order {
   orderItems    OrderItem[]
   payments      Payment[]
   debt          Debt?
+  accountEntries AccountEntry[]
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
 
+  @@unique([businessId, orderNumber])
   @@index([businessId])
   @@index([customerId])
 }
@@ -186,4 +231,24 @@ model Debt {
 
   @@index([customerId])
   @@index([status])
+}
+
+model AccountEntry {
+  id           String           @id @default(cuid())
+  customerId   String
+  customer     Customer         @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  businessId   String
+  business     Business         @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  orderId      String?
+  order        Order?           @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  amount       Decimal          @db.Decimal(14, 2)
+  balanceAfter Decimal          @db.Decimal(14, 2)
+  kind         AccountEntryKind
+  method       PaymentMethod?
+  note         String?
+  createdAt    DateTime         @default(now())
+
+  @@index([customerId])
+  @@index([businessId])
+  @@index([orderId])
 }

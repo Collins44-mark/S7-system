@@ -12,10 +12,9 @@ import type { PayDebtDto } from '../dto/pay-debt.dto';
 export class DebtsRepository {
   constructor(private readonly prisma: PrismaService) {}
 
-  findOpenForBusiness(businessId: string) {
+  findForBusiness(businessId: string) {
     return this.prisma.debt.findMany({
       where: {
-        status: DebtStatus.OPEN,
         customer: { businessId },
       },
       orderBy: { createdAt: 'desc' },
@@ -71,7 +70,7 @@ export class DebtsRepository {
         order.amountPaid.toString(),
       ).add(payAmount);
 
-      await tx.payment.create({
+      const payment = await tx.payment.create({
         data: {
           orderId: order.id,
           amount: payAmount,
@@ -108,13 +107,26 @@ export class DebtsRepository {
         });
       }
 
-      return tx.debt.findFirstOrThrow({
+      const updated = await tx.debt.findFirstOrThrow({
         where: { id: debt.id },
         include: {
           customer: true,
           order: true,
         },
       });
+      return { debt: updated, payment };
+    });
+  }
+
+  async findPaymentsForDebt(businessId: string, debtId: string) {
+    const debt = await this.prisma.debt.findFirst({
+      where: { id: debtId, customer: { businessId } },
+      select: { orderId: true },
+    });
+    if (!debt) return null;
+    return this.prisma.payment.findMany({
+      where: { orderId: debt.orderId, businessId },
+      orderBy: { createdAt: 'desc' },
     });
   }
 }

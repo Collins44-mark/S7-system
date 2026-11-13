@@ -5,6 +5,7 @@ import { useAuthStore } from "@/lib/auth-store";
 import { setAuthToken } from "@/lib/api";
 import { I18nProvider } from "@/lib/i18n-context";
 import { SearchProvider } from "@/lib/search-context";
+import { SaveFeedback } from "@/components/save-feedback";
 
 export function Providers({ children }: { children: React.ReactNode }) {
   const token = useAuthStore((s) => s.token);
@@ -15,7 +16,10 @@ export function Providers({ children }: { children: React.ReactNode }) {
 
   return (
     <I18nProvider>
-      <SearchProvider>{children}</SearchProvider>
+      <SearchProvider>
+        {children}
+        <SaveFeedback />
+      </SearchProvider>
     </I18nProvider>
   );
 }

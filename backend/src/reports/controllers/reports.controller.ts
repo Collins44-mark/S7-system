@@ -43,9 +43,10 @@ export class ReportsController {
   @Get('restocks')
   restocks(
     @CurrentUser() user: BusinessPrincipal,
+    @Query('period') period?: ReportPeriod,
     @Query('from') from?: string,
     @Query('to') to?: string,
   ) {
-    return this.reports.restocks(user, from, to);
+    return this.reports.restocks(user, period, from, to);
   }
 }

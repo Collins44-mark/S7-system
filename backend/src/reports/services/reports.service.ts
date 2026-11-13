@@ -31,7 +31,7 @@ export class ReportsService {
 
     const profitAgg = await this.reports.aggregateProfitAllTime(businessPk);
 
-    const recentOrders = await this.reports.findRecentOrders(businessPk, 10);
+    const recentOrders = await this.reports.findRecentOrders(businessPk, 4);
 
     return {
       totalItemSkus: items.length,
@@ -73,12 +73,21 @@ export class ReportsService {
       orderWhere,
     );
 
+    const lineTotal = new Prisma.Decimal(
+      itemAgg._sum.lineTotal?.toString() ?? '0',
+    );
+    const lineProfit = new Prisma.Decimal(
+      itemAgg._sum.lineProfit?.toString() ?? '0',
+    );
+    const costOfGoodsSold = lineTotal.sub(lineProfit);
+
     return {
       period: period ?? 'custom',
       start: start.toISOString(),
       end: end.toISOString(),
       totalSales: salesSum._sum.totalAmount?.toString() ?? '0',
-      totalProfit: itemAgg._sum.lineProfit?.toString() ?? '0',
+      totalProfit: lineProfit.toString(),
+      costOfGoodsSold: costOfGoodsSold.toString(),
       itemsSold: itemAgg._sum.quantity?.toString() ?? '0',
     };
   }
@@ -125,13 +134,43 @@ export class ReportsService {
     };
   }
 
-  async restocks(user: BusinessPrincipal, from?: string, to?: string) {
-    const fromD = from ? new Date(from) : undefined;
-    const toD = to ? new Date(to) : undefined;
-    return this.reports.findRestocks(
-      user.sub,
-      fromD && toD ? fromD : undefined,
-      fromD && toD ? toD : undefined,
-    );
+  async restocks(
+    user: BusinessPrincipal,
+    period?: ReportPeriod,
+    from?: string,
+    to?: string,
+  ) {
+    let fromD: Date | undefined;
+    let toD: Date | undefined;
+    if (from && to) {
+      fromD = new Date(from);
+      toD = new Date(to);
+    } else if (period) {
+      const range = this.reports.rangeForPeriod(period);
+      fromD = range.start;
+      toD = range.end;
+    }
+    const rows = await this.reports.findRestocks(user.sub, fromD, toD);
+    return rows.map((row) => {
+      const total = row.logs.reduce(
+        (sum, log) => sum.add(new Prisma.Decimal(log.quantity.toString())),
+        new Prisma.Decimal(0),
+      );
+      return {
+        id: row.id,
+        number: `RST-${String(row.sequence).padStart(2, '0')}`,
+        createdAt: row.createdAt,
+        notes: row.notes,
+        totalQuantity: total.toString(),
+        lines: row.logs.map((log) => ({
+          id: log.id,
+          name: log.item.name,
+          unit: log.item.unit,
+          quantity: log.quantity.toString(),
+          quantityBefore: log.quantityBefore?.toString() ?? null,
+          quantityAfter: log.quantityAfter?.toString() ?? null,
+        })),
+      };
+    });
   }
 }

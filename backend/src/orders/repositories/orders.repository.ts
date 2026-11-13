@@ -44,20 +44,32 @@ export class OrdersRepository {
     const lines = dto.items;
 
     return this.prisma.$transaction(async (tx) => {
-      const customer = await tx.customer.upsert({
-        where: {
-          businessId_phone: {
-            businessId,
-            phone: dto.customerPhone.trim(),
-          },
-        },
-        create: {
-          businessId,
-          name: dto.customerName.trim(),
-          phone: dto.customerPhone.trim(),
-        },
-        update: { name: dto.customerName.trim() },
+      const phone = dto.customerPhone.trim();
+      const name = dto.customerName.trim();
+      let customer = await tx.customer.findUnique({
+        where: { businessId_phone: { businessId, phone } },
       });
+      if (!customer) {
+        customer = await tx.customer.findFirst({
+          where: {
+            businessId,
+            name: { equals: name, mode: 'insensitive' },
+          },
+          orderBy: { createdAt: 'asc' },
+        });
+      }
+      if (customer) {
+        if (customer.phone === phone && customer.name !== name) {
+          customer = await tx.customer.update({
+            where: { id: customer.id },
+            data: { name },
+          });
+        }
+      } else {
+        customer = await tx.customer.create({
+          data: { businessId, name, phone },
+        });
+      }
 
       let total = new Prisma.Decimal(0);
       const prepared: {
@@ -118,17 +130,48 @@ export class OrdersRepository {
       }
 
       const balance = total.sub(amountPaid);
-      const orderNumber = `ORD-${Date.now().toString(36).toUpperCase()}`;
       const status: OrderStatus = balance.lte(0)
         ? OrderStatus.COMPLETED
         : OrderStatus.PENDING;
 
+      let accountBalanceAfter: Prisma.Decimal | null = null;
+      if (dto.paymentMethod === 'ACCOUNT') {
+        if (amountPaid.lte(0)) {
+          throw new CheckoutError(
+            'Enter an amount to take from the account',
+            'INSUFFICIENT_ACCOUNT',
+          );
+        }
+        const taken = await tx.customer.updateMany({
+          where: {
+            id: customer.id,
+            creditBalance: { gte: amountPaid },
+          },
+          data: { creditBalance: { decrement: amountPaid } },
+        });
+        if (taken.count !== 1) {
+          throw new CheckoutError(
+            'Not enough money on this account',
+            'INSUFFICIENT_ACCOUNT',
+          );
+        }
+        const after = await tx.customer.findUniqueOrThrow({
+          where: { id: customer.id },
+          select: { creditBalance: true },
+        });
+        accountBalanceAfter = after.creditBalance;
+      }
+
       const bizSeq = await tx.business.update({
         where: { id: businessId },
-        data: { lastReceiptSequence: { increment: 1 } },
-        select: { lastReceiptSequence: true },
+        data: {
+          lastReceiptSequence: { increment: 1 },
+          lastOrderSequence: { increment: 1 },
+        },
+        select: { lastReceiptSequence: true, lastOrderSequence: true },
       });
-      const receiptNumber = `RCT-${String(bizSeq.lastReceiptSequence).padStart(6, '0')}`;
+      const orderNumber = `ORD-${String(bizSeq.lastOrderSequence).padStart(3, '0')}`;
+      const receiptNumber = `RCT-${String(bizSeq.lastReceiptSequence).padStart(3, '0')}`;
 
       const order = await tx.order.create({
         data: {
@@ -178,6 +221,21 @@ export class OrdersRepository {
             customerId: customer.id,
             amount: balance,
             status: DebtStatus.OPEN,
+          },
+        });
+      }
+
+      if (accountBalanceAfter !== null) {
+        await tx.accountEntry.create({
+          data: {
+            customerId: customer.id,
+            businessId,
+            orderId: order.id,
+            amount: amountPaid.neg(),
+            balanceAfter: accountBalanceAfter,
+            kind: 'PURCHASE',
+            method: 'ACCOUNT',
+            note: 'Sale',
           },
         });
       }

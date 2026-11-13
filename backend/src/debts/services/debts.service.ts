@@ -12,7 +12,15 @@ export class DebtsService {
   constructor(private readonly debts: DebtsRepository) {}
 
   listOpen(user: BusinessPrincipal) {
-    return this.debts.findOpenForBusiness(user.sub);
+    return this.debts.findForBusiness(user.sub);
+  }
+
+  async payments(user: BusinessPrincipal, debtId: string) {
+    const rows = await this.debts.findPaymentsForDebt(user.sub, debtId);
+    if (!rows) {
+      throw new NotFoundException('Debt not found');
+    }
+    return rows;
   }
 
   async pay(user: BusinessPrincipal, debtId: string, dto: PayDebtDto) {

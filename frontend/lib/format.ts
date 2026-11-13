@@ -50,13 +50,28 @@ export function parseAmount(raw: unknown): number | null {
   return null;
 }
 
+/** Whole amounts stay as 1500. Amounts with cents stay as 1500.50. */
+export function formatAmount(n: number) {
+  const rounded = Math.round(n * 100) / 100;
+  const whole = Math.abs(rounded - Math.trunc(rounded)) < 1e-9;
+  return new Intl.NumberFormat(undefined, {
+    minimumFractionDigits: whole ? 0 : 2,
+    maximumFractionDigits: whole ? 0 : 2,
+  }).format(rounded);
+}
+
+/** Same rules, without thousands separators, for number inputs. */
+export function formatAmountInput(n: number) {
+  const rounded = Math.round(n * 100) / 100;
+  const whole = Math.abs(rounded - Math.trunc(rounded)) < 1e-9;
+  if (whole) return String(Math.trunc(rounded));
+  return rounded.toFixed(2);
+}
+
 export function money(n: string | number | null | undefined | object) {
   const parsed = parseAmount(n);
   if (parsed == null) return "—";
-  return new Intl.NumberFormat(undefined, {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(parsed);
+  return formatAmount(parsed);
 }
 
 export function paymentLabel(m: string) {
@@ -66,6 +81,7 @@ export function paymentLabel(m: string) {
     MPESA: "M-Pesa",
     TIGO_PESA: "Tigo Pesa",
     BANK: "Bank",
+    ACCOUNT: "Account",
   };
   return map[m] ?? m;
 }

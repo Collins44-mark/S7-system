@@ -106,12 +106,56 @@ export class ItemsService {
     if (!item) {
       throw new NotFoundException('Item not found');
     }
-    const row = await this.items.restockWithLog({
-      itemId: id,
-      businessId: user.sub,
-      quantity: this.dec(quantity),
-      notes: notes ?? null,
+    try {
+      const result = await this.items.restockBatch({
+        businessId: user.sub,
+        notes: notes?.trim() ? notes.trim() : null,
+        lines: [{ itemId: id, quantity: this.dec(quantity) }],
+      });
+      if (!result.item) {
+        throw new NotFoundException('Item not found');
+      }
+      return this.withDecimalStrings(result.item);
+    } catch (err) {
+      if (err instanceof Error && err.message === 'ITEM_NOT_FOUND') {
+        throw new NotFoundException('Item not found');
+      }
+      throw err;
+    }
+  }
+
+  async restockBulk(
+    user: BusinessPrincipal,
+    notes: string | undefined,
+    lines: { itemId: string; quantity: number }[],
+  ) {
+    const seen = new Set<string>();
+    const cleaned = lines.filter((line) => {
+      if (seen.has(line.itemId)) return false;
+      seen.add(line.itemId);
+      return line.quantity > 0;
     });
-    return this.withDecimalStrings(row);
+    if (cleaned.length === 0) {
+      throw new BadRequestException('Add a quantity for at least one item');
+    }
+    try {
+      const result = await this.items.restockBatch({
+        businessId: user.sub,
+        notes: notes?.trim() ? notes.trim() : null,
+        lines: cleaned.map((line) => ({
+          itemId: line.itemId,
+          quantity: this.dec(line.quantity),
+        })),
+      });
+      return {
+        id: result.restockId,
+        number: `RST-${String(result.sequence).padStart(2, '0')}`,
+      };
+    } catch (err) {
+      if (err instanceof Error && err.message === 'ITEM_NOT_FOUND') {
+        throw new NotFoundException('Item not found');
+      }
+      throw err;
+    }
   }
 }

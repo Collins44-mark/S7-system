@@ -68,26 +68,54 @@ export class ItemsRepository {
     return this.prisma.item.delete({ where: { id } });
   }
 
-  restockWithLog(params: {
-    itemId: string;
+  restockBatch(params: {
     businessId: string;
-    quantity: Prisma.Decimal;
     notes: string | null;
+    lines: { itemId: string; quantity: Prisma.Decimal }[];
   }) {
     return this.prisma.$transaction(async (tx) => {
-      await tx.restockLog.create({
+      const business = await tx.business.update({
+        where: { id: params.businessId },
+        data: { lastRestockSequence: { increment: 1 } },
+        select: { lastRestockSequence: true },
+      });
+      const restock = await tx.restock.create({
         data: {
-          itemId: params.itemId,
-          quantity: params.quantity,
-          notes: params.notes,
           businessId: params.businessId,
+          sequence: business.lastRestockSequence,
+          notes: params.notes,
         },
       });
-      return tx.item.update({
-        where: { id: params.itemId },
-        data: { quantity: { increment: params.quantity } },
+      for (const line of params.lines) {
+        const item = await tx.item.findFirst({
+          where: { id: line.itemId, businessId: params.businessId },
+        });
+        if (!item) {
+          throw new Error('ITEM_NOT_FOUND');
+        }
+        const before = item.quantity;
+        const after = before.add(line.quantity);
+        await tx.restockLog.create({
+          data: {
+            restockId: restock.id,
+            itemId: item.id,
+            businessId: params.businessId,
+            quantity: line.quantity,
+            quantityBefore: before,
+            quantityAfter: after,
+            notes: params.notes,
+          },
+        });
+        await tx.item.update({
+          where: { id: item.id },
+          data: { quantity: after },
+        });
+      }
+      const updated = await tx.item.findFirst({
+        where: { id: params.lines[0]?.itemId, businessId: params.businessId },
         include: { category: true },
       });
+      return { restockId: restock.id, sequence: restock.sequence, item: updated };
     });
   }
 }

@@ -1,4 +1,5 @@
 import axios from "axios";
+import { saveFeedbackBegin, saveFeedbackEnd } from "@/lib/save-feedback-bus";
 
 /** Zustand persist key — import in `auth-store.ts` as `persist.name`. */
 export const AUTH_PERSIST_STORAGE_KEY = "hardware-auth-v2";
@@ -43,6 +44,8 @@ export const api = axios.create({
  * Zustand persist rehydrates after the first paint; axios defaults may still lack
  * Authorization. Attach Bearer from the same localStorage key on every request.
  */
+const SAVE_FEEDBACK = "__saveFeedback";
+
 api.interceptors.request.use((config) => {
   if (typeof window === "undefined") return config;
   const t = readPersistedBearerToken();
@@ -51,8 +54,35 @@ api.interceptors.request.use((config) => {
   } else {
     delete config.headers.Authorization;
   }
+  const method = (config.method ?? "get").toLowerCase();
+  if (method === "post" || method === "put" || method === "patch" || method === "delete") {
+    (config as typeof config & { [SAVE_FEEDBACK]?: boolean })[SAVE_FEEDBACK] = true;
+    saveFeedbackBegin();
+  }
   return config;
 });
+
+api.interceptors.response.use(
+  (response) => {
+    const marked = response.config as typeof response.config & {
+      [SAVE_FEEDBACK]?: boolean;
+    };
+    if (marked[SAVE_FEEDBACK]) saveFeedbackEnd(true);
+    return response;
+  },
+  (error: unknown) => {
+    const config =
+      error &&
+      typeof error === "object" &&
+      "config" in error &&
+      error.config &&
+      typeof error.config === "object"
+        ? (error.config as { [SAVE_FEEDBACK]?: boolean })
+        : null;
+    if (config?.[SAVE_FEEDBACK]) saveFeedbackEnd(false);
+    return Promise.reject(error);
+  },
+);
 
 const initialToken = readPersistedBearerToken();
 if (initialToken) {

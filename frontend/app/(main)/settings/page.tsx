@@ -40,7 +40,15 @@ type Me = {
   name: string;
   uniqueCode: string;
   createdAt: string;
-  receiptPaperWidthMm: number;
+  ownerName: string | null;
+  phone: string | null;
+  email: string | null;
+  address: string | null;
+  poBox: string | null;
+  tin: string | null;
+  vrn: string | null;
+  logoDataUrl: string | null;
+  receiptPaperWidthMm: number | null;
   printReceiptAfterSale: boolean;
 };
 
@@ -51,7 +59,15 @@ export default function SettingsPage() {
   const session = useAuthStore((s) => s.session);
 
   const [name, setName] = useState("");
-  const [paperMm, setPaperMm] = useState("58");
+  const [ownerName, setOwnerName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [email, setEmail] = useState("");
+  const [address, setAddress] = useState("");
+  const [poBox, setPoBox] = useState("");
+  const [tin, setTin] = useState("");
+  const [vrn, setVrn] = useState("");
+  const [logoDataUrl, setLogoDataUrl] = useState("");
+  const [paperMm, setPaperMm] = useState("");
   const [printAfterSale, setPrintAfterSale] = useState(true);
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
@@ -82,8 +98,17 @@ export default function SettingsPage() {
   useEffect(() => {
     if (!profile) return;
     setName(profile.name ?? "");
-    const w = profile.receiptPaperWidthMm ?? 58;
-    setPaperMm(String(Math.min(60, Math.max(50, w))));
+    setOwnerName(profile.ownerName ?? "");
+    setPhone(profile.phone ?? "");
+    setEmail(profile.email ?? "");
+    setAddress(profile.address ?? "");
+    setPoBox(profile.poBox ?? "");
+    setTin(profile.tin ?? "");
+    setVrn(profile.vrn ?? "");
+    setLogoDataUrl(profile.logoDataUrl ?? "");
+    setPaperMm(
+      profile.receiptPaperWidthMm == null ? "" : String(profile.receiptPaperWidthMm),
+    );
     setPrintAfterSale(profile.printReceiptAfterSale ?? true);
   }, [profile]);
 
@@ -94,10 +119,15 @@ export default function SettingsPage() {
     setSession(token, {
       ...s,
       businessName: profile.name,
-      receiptPaperWidthMm: Math.min(
-        60,
-        Math.max(50, profile.receiptPaperWidthMm ?? 58),
-      ),
+      ownerName: profile.ownerName,
+      phone: profile.phone,
+      email: profile.email,
+      address: profile.address,
+      poBox: profile.poBox,
+      tin: profile.tin,
+      vrn: profile.vrn,
+      logoDataUrl: profile.logoDataUrl,
+      receiptPaperWidthMm: profile.receiptPaperWidthMm,
       printReceiptAfterSale: profile.printReceiptAfterSale,
     });
   }, [profile, token, setSession]);
@@ -108,8 +138,9 @@ export default function SettingsPage() {
     setSaving(true);
     setMsg(null);
     setSaveError(null);
-    const width = parseInt(paperMm, 10);
-    if (Number.isNaN(width) || width < 50 || width > 60) {
+    const trimmed = paperMm.trim();
+    const width = trimmed === "" ? null : parseInt(trimmed, 10);
+    if (width !== null && (Number.isNaN(width) || width < 48 || width > 80)) {
       setSaveError(t("settings.widthError"));
       setSaving(false);
       return;
@@ -117,6 +148,14 @@ export default function SettingsPage() {
     try {
       const { data } = await api.patch<Me>("/auth/me", {
         name: name || undefined,
+        ownerName,
+        phone,
+        email,
+        address,
+        poBox,
+        tin,
+        vrn,
+        logoDataUrl,
         receiptPaperWidthMm: width,
         printReceiptAfterSale: printAfterSale,
       });
@@ -124,11 +163,16 @@ export default function SettingsPage() {
         role: "BUSINESS",
         businessId: data.uniqueCode,
         businessName: data.name,
+        ownerName: data.ownerName,
         id: data.id,
-        receiptPaperWidthMm: Math.min(
-          60,
-          Math.max(50, data.receiptPaperWidthMm),
-        ),
+        phone: data.phone,
+        email: data.email,
+        address: data.address,
+        poBox: data.poBox,
+        tin: data.tin,
+        vrn: data.vrn,
+        logoDataUrl: data.logoDataUrl,
+        receiptPaperWidthMm: data.receiptPaperWidthMm,
         printReceiptAfterSale: data.printReceiptAfterSale,
       });
       setMsg(t("common.saved"));
@@ -141,7 +185,7 @@ export default function SettingsPage() {
   }
 
   const testTitle = (name || profile?.name || "Business").trim();
-  const widthNum = parseInt(paperMm, 10) || 58;
+  const widthNum = paperMm.trim() === "" ? null : parseInt(paperMm, 10);
 
   function runTestPrint() {
     openPosTestPrint(widthNum, testTitle);
@@ -271,8 +315,22 @@ export default function SettingsPage() {
       </div>
 
       <div className="glass rounded-2xl p-6">
-        <h3 className="mb-4 font-semibold text-slate-700">{t("settings.profile")}</h3>
+        <h3 className="mb-1 font-semibold text-slate-700">{t("settings.userProfile")}</h3>
+        <p className="mb-4 text-xs text-slate-500">{t("settings.yourNameHint")}</p>
         <form onSubmit={save} className="space-y-4">
+          <div>
+            <Label htmlFor="ownerName">{t("settings.yourName")}</Label>
+            <Input
+              id="ownerName"
+              value={ownerName}
+              onChange={(e) => setOwnerName(e.target.value)}
+              className="mt-1 rounded-xl"
+            />
+          </div>
+
+          <div className="border-t border-slate-200 pt-6">
+            <h3 className="mb-4 font-semibold text-slate-700">{t("settings.profile")}</h3>
+          </div>
           {saveError && (
             <p className="text-sm text-red-600" role="alert">
               {saveError}
@@ -288,6 +346,54 @@ export default function SettingsPage() {
             />
           </div>
           <div>
+            <Label>{t("settings.logo")}</Label>
+            <p className="mt-1 text-xs text-slate-500">{t("settings.logoHint")}</p>
+            <div className="mt-3 flex items-center gap-4">
+              <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-2xl border border-slate-200 bg-slate-50">
+                {logoDataUrl ? (
+                  <img src={logoDataUrl} alt="" className="h-full w-full object-cover" />
+                ) : (
+                  <span className="text-xs text-slate-400">—</span>
+                )}
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <label className="inline-flex cursor-pointer items-center rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 hover:bg-slate-50">
+                  {t("settings.logoChoose")}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="sr-only"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      e.target.value = "";
+                      if (!file) return;
+                      if (!file.type.startsWith("image/") || file.size > 250 * 1024) {
+                        setSaveError(t("settings.logoError"));
+                        return;
+                      }
+                      const reader = new FileReader();
+                      reader.onload = () => {
+                        setSaveError(null);
+                        setLogoDataUrl(String(reader.result ?? ""));
+                      };
+                      reader.readAsDataURL(file);
+                    }}
+                  />
+                </label>
+                {logoDataUrl ? (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    className="rounded-xl text-slate-600"
+                    onClick={() => setLogoDataUrl("")}
+                  >
+                    {t("settings.logoRemove")}
+                  </Button>
+                ) : null}
+              </div>
+            </div>
+          </div>
+          <div>
             <Label htmlFor="name">{t("settings.businessName")}</Label>
             <Input
               id="name"
@@ -295,6 +401,63 @@ export default function SettingsPage() {
               onChange={(e) => setName(e.target.value)}
               className="mt-1 rounded-xl"
             />
+          </div>
+          <div>
+            <Label htmlFor="address">{t("settings.address")}</Label>
+            <Input
+              id="address"
+              value={address}
+              onChange={(e) => setAddress(e.target.value)}
+              className="mt-1 rounded-xl"
+            />
+          </div>
+          <div>
+            <Label htmlFor="poBox">{t("settings.poBox")}</Label>
+            <Input
+              id="poBox"
+              value={poBox}
+              onChange={(e) => setPoBox(e.target.value)}
+              className="mt-1 rounded-xl"
+            />
+          </div>
+          <div>
+            <Label htmlFor="phone">{t("settings.phone")}</Label>
+            <Input
+              id="phone"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              className="mt-1 rounded-xl"
+            />
+          </div>
+          <div>
+            <Label htmlFor="email">{t("settings.email")}</Label>
+            <Input
+              id="email"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="mt-1 rounded-xl"
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label htmlFor="tin">{t("settings.tin")}</Label>
+              <Input
+                id="tin"
+                value={tin}
+                onChange={(e) => setTin(e.target.value)}
+                className="mt-1 rounded-xl"
+              />
+            </div>
+            <div>
+              <Label htmlFor="vrn">{t("settings.vrn")}</Label>
+              <Input
+                id="vrn"
+                value={vrn}
+                onChange={(e) => setVrn(e.target.value)}
+                className="mt-1 rounded-xl"
+              />
+            </div>
           </div>
 
           <div className="border-t border-slate-200 pt-6">
@@ -307,12 +470,14 @@ export default function SettingsPage() {
                 <Input
                   id="paper"
                   type="number"
-                  min={50}
-                  max={60}
+                  min={48}
+                  max={80}
                   value={paperMm}
+                  placeholder={t("settings.receiptWidthAuto")}
                   onChange={(e) => setPaperMm(e.target.value)}
                   className="mt-1 max-w-[12rem] rounded-xl"
                 />
+                <p className="mt-1 text-xs text-slate-500">{t("settings.receiptWidthHint")}</p>
               </div>
               <label className="flex cursor-pointer items-center gap-2 text-sm text-slate-700">
                 <input

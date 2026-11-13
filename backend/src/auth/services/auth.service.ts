@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, Injectable, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
@@ -66,7 +66,15 @@ export class AuthService {
       role: 'BUSINESS' as const,
       businessId: business!.uniqueCode,
       businessName: business!.name,
+      ownerName: business!.ownerName,
       id: business!.id,
+      phone: business!.phone,
+      email: business!.email,
+      address: business!.address,
+      poBox: business!.poBox,
+      tin: business!.tin,
+      vrn: business!.vrn,
+      logoDataUrl: business!.logoDataUrl,
     };
   }
 
@@ -98,10 +106,35 @@ export class AuthService {
     }
     const data: {
       name?: string;
-      receiptPaperWidthMm?: number;
+      ownerName?: string | null;
+      phone?: string | null;
+      email?: string | null;
+      address?: string | null;
+      poBox?: string | null;
+      tin?: string | null;
+      vrn?: string | null;
+      logoDataUrl?: string | null;
+      receiptPaperWidthMm?: number | null;
       printReceiptAfterSale?: boolean;
     } = {};
     if (body.name !== undefined) data.name = body.name;
+    if (body.ownerName !== undefined) data.ownerName = body.ownerName.trim() || null;
+    if (body.phone !== undefined) data.phone = body.phone.trim() || null;
+    if (body.email !== undefined) data.email = body.email.trim() || null;
+    if (body.address !== undefined) data.address = body.address.trim() || null;
+    if (body.poBox !== undefined) data.poBox = body.poBox.trim() || null;
+    if (body.tin !== undefined) data.tin = body.tin.trim() || null;
+    if (body.vrn !== undefined) data.vrn = body.vrn.trim() || null;
+    if (body.logoDataUrl !== undefined) {
+      const logo = body.logoDataUrl.trim();
+      if (!logo) {
+        data.logoDataUrl = null;
+      } else if (!logo.startsWith('data:image/') || logo.length > 350_000) {
+        throw new BadRequestException('Logo must be a small image.');
+      } else {
+        data.logoDataUrl = logo;
+      }
+    }
     if (body.receiptPaperWidthMm !== undefined) {
       data.receiptPaperWidthMm = body.receiptPaperWidthMm;
     }

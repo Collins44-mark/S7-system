@@ -8,6 +8,14 @@ const businessPublicSelect = {
   createdAt: true,
   receiptPaperWidthMm: true,
   printReceiptAfterSale: true,
+  phone: true,
+  email: true,
+  address: true,
+  poBox: true,
+  tin: true,
+  vrn: true,
+  ownerName: true,
+  logoDataUrl: true,
 } as const;
 
 @Injectable()
@@ -50,7 +58,15 @@ export class BusinessesRepository {
     businessPk: string,
     data: {
       name?: string;
-      receiptPaperWidthMm?: number;
+      ownerName?: string | null;
+      phone?: string | null;
+      email?: string | null;
+      address?: string | null;
+      poBox?: string | null;
+      tin?: string | null;
+      vrn?: string | null;
+      logoDataUrl?: string | null;
+      receiptPaperWidthMm?: number | null;
       printReceiptAfterSale?: boolean;
     },
   ) {

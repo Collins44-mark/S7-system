@@ -20,6 +20,14 @@ export class DebtsController {
     return this.debts.listOpen(user);
   }
 
+  @Get(':id/payments')
+  payments(
+    @CurrentUser() user: BusinessPrincipal,
+    @Param('id') id: string,
+  ) {
+    return this.debts.payments(user, id);
+  }
+
   @Post(':id/pay')
   pay(
     @CurrentUser() user: BusinessPrincipal,
