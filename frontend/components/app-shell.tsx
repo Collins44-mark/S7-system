@@ -134,7 +134,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       handleLogout={handleLogout}
       businessId={businessId ?? ""}
       businessName={businessName}
-      businessLogo={businessLogo}
+      businessLogo={businessLogo ?? null}
       role={session?.role}
       t={t}
     >

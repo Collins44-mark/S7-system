@@ -217,7 +217,7 @@ export type ReceiptOrder = {
   amountPaid: string;
   balance: string;
   paymentMethod: string;
-  customer: { name: string; phone: string };
+  customer: { name: string; phone: string | null };
   orderItems: {
     quantity: string;
     unitSellPrice: string;
