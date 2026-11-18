@@ -51,9 +51,12 @@ export class ReportsRepository {
     });
   }
 
-  findRecentOrders(businessId: string, take: number) {
+  findRecentOrders(businessId: string, take: number, start: Date, end: Date) {
     return this.prisma.order.findMany({
-      where: { businessId },
+      where: {
+        businessId,
+        createdAt: { gte: start, lte: end },
+      },
       orderBy: { createdAt: 'desc' },
       take,
       include: { customer: true },

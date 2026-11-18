@@ -5,7 +5,8 @@ export class CheckoutError extends Error {
       | 'ITEM_NOT_FOUND'
       | 'INSUFFICIENT_STOCK'
       | 'AMOUNT_EXCEEDS_TOTAL'
-      | 'INSUFFICIENT_ACCOUNT',
+      | 'INSUFFICIENT_ACCOUNT'
+      | 'PHONE_REQUIRED',
     public readonly detail?: string,
   ) {
     super(message);

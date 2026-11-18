@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo } from "react";
-import { money, parseAmount } from "@/lib/format";
+import { formatAmount, money, parseAmount } from "@/lib/format";
 import { printThermalSlip, thermalReceiptPage } from "@/lib/print-thermal-slip";
 import { useAuthStore } from "@/lib/auth-store";
 import { useI18n } from "@/lib/i18n-context";
@@ -23,10 +23,7 @@ function slipDate(iso: string) {
 function slipAmount(value: string | number) {
   const parsed = parseAmount(value);
   if (parsed == null) return "—";
-  return new Intl.NumberFormat(undefined, {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(parsed);
+  return formatAmount(parsed);
 }
 
 function owedAmount(total: string, paid: string, balance: string) {
@@ -309,32 +306,32 @@ export function ReceiptDialog({
             }}
           >
             <div className="border-b border-black pb-2 text-center text-black">
-              <h2 className="text-sm font-extrabold uppercase leading-tight">{businessTitle}</h2>
+              <h2 className="text-xl font-extrabold uppercase leading-tight">{businessTitle}</h2>
               {session?.role === "BUSINESS" && session.address
                 ? session.address.split(/\r?\n/).filter((line) => line.trim()).map((line, index) => (
-                    <p key={`${index}-${line}`} className="text-[9px] font-semibold uppercase leading-tight tracking-wide">{line}</p>
+                    <p key={`${index}-${line}`} className="text-xs font-bold uppercase leading-tight tracking-wide">{line}</p>
                   ))
                 : null}
               {session?.role === "BUSINESS" && session.poBox ? (
-                <p className="text-[9px] font-semibold uppercase leading-tight tracking-wide">P.O.BOX {session.poBox}</p>
+                <p className="text-xs font-bold uppercase leading-tight tracking-wide">P.O.BOX {session.poBox}</p>
               ) : null}
               {session?.role === "BUSINESS" && session.phone ? (
-                <p className="text-[9px] font-semibold uppercase leading-tight tracking-wide">MOB: {session.phone}</p>
+                <p className="text-xs font-bold uppercase leading-tight tracking-wide">MOB: {session.phone}</p>
               ) : null}
               {session?.role === "BUSINESS" && session.email ? (
-                <p className="text-[9px] font-semibold uppercase leading-tight tracking-wide">EMAIL: {session.email}</p>
+                <p className="text-xs font-bold uppercase leading-tight tracking-wide">EMAIL: {session.email}</p>
               ) : null}
               {session?.role === "BUSINESS" && session.tin ? (
-                <p className="text-[9px] font-semibold uppercase leading-tight tracking-wide">TIN: {session.tin}</p>
+                <p className="text-xs font-bold uppercase leading-tight tracking-wide">TIN: {session.tin}</p>
               ) : null}
               {session?.role === "BUSINESS" && session.vrn ? (
-                <p className="text-[9px] font-semibold uppercase leading-tight tracking-wide">VRN: {session.vrn}</p>
+                <p className="text-xs font-bold uppercase leading-tight tracking-wide">VRN: {session.vrn}</p>
               ) : null}
             </div>
-            <p className="border-b border-black py-1 text-center text-sm font-extrabold tracking-widest text-black">
+            <p className="border-b border-black py-1 text-center text-lg font-extrabold tracking-widest text-black">
               {receiptWord}
             </p>
-            <div className="space-y-0.5 border-b border-black py-2 text-xs text-black">
+            <div className="space-y-0.5 border-b border-black py-2 text-sm text-black">
               <div className="flex justify-between gap-3">
                 <span className="font-bold">{t("receipt.customer")}:</span>
                 <span>{order.customer.name}</span>
@@ -349,7 +346,7 @@ export function ReceiptDialog({
               </div>
             </div>
             {!debt && (
-              <table className="mt-2 w-full table-fixed border-b border-black text-left text-[11px] text-black">
+              <table className="mt-2 w-full table-fixed border-b border-black text-left text-sm text-black">
                 <thead>
                   <tr className="border-b border-black">
                     <th className="w-[40%] py-1 font-bold">{t("receipt.description")}</th>
@@ -373,7 +370,7 @@ export function ReceiptDialog({
                 </tbody>
               </table>
             )}
-            <div className="space-y-0.5 border-b border-black py-2 text-xs font-bold text-black">
+            <div className="space-y-0.5 border-b border-black py-2 text-base font-extrabold text-black">
               <div className="flex justify-end gap-8">
                 <span>{t("receipt.total")}:</span>
                 <span>{slipAmount(order.totalAmount)}</span>
@@ -395,9 +392,9 @@ export function ReceiptDialog({
                 </>
               ) : null}
             </div>
-            <div className="mt-2 text-center text-[11px] text-black">
+            <div className="mt-2 text-center text-sm font-bold text-black">
               <p>{thanks}</p>
-              <p className="mt-1 font-bold uppercase">{businessTitle}</p>
+              <p className="mt-1 text-base font-extrabold uppercase">{businessTitle}</p>
             </div>
             <div className="mt-5 flex gap-2 print:hidden">
               <Button
@@ -443,7 +440,7 @@ export function ReceiptDialog({
                     receiptLabel,
                     date,
                     customerName: order.customer.name,
-                    customerPhone: order.customer.phone,
+                    customerPhone: order.customer.phone ?? "",
                     items: debt ? [] : order.orderItems,
                     kind: debt ? "debt" : "sale",
                     totalAmount: order.totalAmount,

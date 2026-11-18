@@ -10,7 +10,7 @@ export type { ReportPeriod } from '../types/report-period';
 export class ReportsService {
   constructor(private readonly reports: ReportsRepository) {}
 
-  async dashboard(user: BusinessPrincipal) {
+  async dashboard(user: BusinessPrincipal, from?: string, to?: string) {
     const businessPk = user.sub;
 
     const items = await this.reports.findItemsForDashboard(businessPk);
@@ -24,7 +24,7 @@ export class ReportsService {
       stockValue = stockValue.add(
         new Prisma.Decimal(it.buyingPrice.toString()).mul(it.quantity),
       );
-      if (it.quantity.lte(it.lowStockThreshold)) {
+      if (it.quantity.gt(0) && it.quantity.lte(it.lowStockThreshold)) {
         lowStockCount += 1;
       }
     }
@@ -32,7 +32,17 @@ export class ReportsService {
     const profitAgg = await this.reports.aggregateProfitAllTime(businessPk);
     const expenseAgg = await this.reports.aggregateExpensesAllTime(businessPk);
 
-    const recentOrders = await this.reports.findRecentOrders(businessPk, 4);
+    const today = this.reports.rangeForPeriod('daily');
+    const start = from ? new Date(from) : today.start;
+    const end = to ? new Date(to) : today.end;
+    const dayStart = Number.isNaN(start.getTime()) ? today.start : start;
+    const dayEnd = Number.isNaN(end.getTime()) ? today.end : end;
+    const recentOrders = await this.reports.findRecentOrders(
+      businessPk,
+      4,
+      dayStart,
+      dayEnd,
+    );
 
     return {
       totalItemSkus: items.length,

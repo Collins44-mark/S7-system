@@ -42,7 +42,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Layers, Plus, MoreVertical } from "lucide-react";
 import { getApiErrorMessage } from "@/lib/api-error";
-import { useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
 type Category = { id: string; name: string };
 type Item = {
@@ -83,6 +83,16 @@ function normalizeItemFromApi(raw: unknown): Item {
   };
 }
 
+type StockFilter = "all" | "in" | "low" | "out";
+
+function stockLevel(item: { quantity: string; lowStockThreshold: string }): Exclude<StockFilter, "all"> {
+  const qty = parseAmount(item.quantity) ?? 0;
+  const threshold = parseAmount(item.lowStockThreshold) ?? 0;
+  if (qty <= 0) return "out";
+  if (qty <= threshold) return "low";
+  return "in";
+}
+
 /** GET /categories — tolerate extra fields; always `{ id, name }`. */
 function normalizeCategories(raw: unknown): Category[] {
   if (!Array.isArray(raw)) return [];
@@ -103,8 +113,13 @@ function normalizeCategories(raw: unknown): Category[] {
 export default function InventoryPage() {
   const { t } = useI18n();
   const { query } = useSearch();
+  const router = useRouter();
+  const pathname = usePathname();
   const searchParams = useSearchParams();
   const selectedCategoryId = (searchParams.get("categoryId") ?? "").trim();
+  const stockParam = searchParams.get("stock");
+  const stockFilter: StockFilter =
+    stockParam === "in" || stockParam === "low" || stockParam === "out" ? stockParam : "all";
   const [addOpen, setAddOpen] = useState(false);
   const [bulkOpen, setBulkOpen] = useState(false);
   const [editItem, setEditItem] = useState<Item | null>(null);
@@ -131,6 +146,9 @@ export default function InventoryPage() {
     if (selectedCategoryId) {
       base = base.filter((i) => i.category.id === selectedCategoryId);
     }
+    if (stockFilter !== "all") {
+      base = base.filter((i) => stockLevel(i) === stockFilter);
+    }
     if (!qInv) return base;
     return base.filter(
       (i) =>
@@ -138,7 +156,7 @@ export default function InventoryPage() {
         i.category.name.toLowerCase().includes(qInv) ||
         i.unit.toLowerCase().includes(qInv),
     );
-  }, [items, qInv, selectedCategoryId]);
+  }, [items, qInv, selectedCategoryId, stockFilter]);
 
   const pageSizes = [10, 40, 70, 100] as const;
   const [pageSize, setPageSize] = useState<(typeof pageSizes)[number]>(10);
@@ -146,7 +164,7 @@ export default function InventoryPage() {
 
   useEffect(() => {
     setPage(1);
-  }, [qInv, selectedCategoryId, pageSize]);
+  }, [qInv, selectedCategoryId, stockFilter, pageSize]);
 
   const pageCount = Math.max(1, Math.ceil(filteredItems.length / pageSize));
   const currentPage = Math.min(page, pageCount);
@@ -193,7 +211,38 @@ export default function InventoryPage() {
     <div className="animate-in-page space-y-6">
       {error && <ErrorBanner message={error} onRetry={() => refetch()} />}
       <div className="flex flex-wrap items-center justify-between gap-4">
-        <h1 className="text-2xl font-bold text-slate-800">{t("inventory.title")}</h1>
+        <div className="flex flex-wrap items-center gap-3">
+          <h1 className="text-2xl font-bold text-slate-800">{t("inventory.title")}</h1>
+          <Select
+            value={stockFilter}
+            onValueChange={(value) => {
+              if (value !== "all" && value !== "in" && value !== "low" && value !== "out") return;
+              const params = new URLSearchParams(searchParams.toString());
+              if (value === "all") params.delete("stock");
+              else params.set("stock", value);
+              const next = params.toString();
+              router.replace(next ? `${pathname}?${next}` : pathname);
+            }}
+          >
+            <SelectTrigger className="h-9 w-40 rounded-xl" aria-label={t("inventory.stockFilter")}>
+              <SelectValue>
+                {stockFilter === "in"
+                  ? t("inventory.inStock")
+                  : stockFilter === "low"
+                    ? t("inventory.lowStock")
+                    : stockFilter === "out"
+                      ? t("inventory.outOfStock")
+                      : t("inventory.filterAll")}
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">{t("inventory.filterAll")}</SelectItem>
+              <SelectItem value="in">{t("inventory.inStock")}</SelectItem>
+              <SelectItem value="low">{t("inventory.lowStock")}</SelectItem>
+              <SelectItem value="out">{t("inventory.outOfStock")}</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
         <div className="flex flex-wrap gap-2">
           <Button
             className="btn-primary-gradient rounded-xl text-white"
@@ -247,9 +296,8 @@ export default function InventoryPage() {
           </TableHeader>
           <TableBody>
             {pageItems.map((item) => {
-              const qty = parseAmount(item.quantity) ?? 0;
-              const lowThreshold = parseAmount(item.lowStockThreshold) ?? 0;
-              const low = qty <= lowThreshold;
+              const level = stockLevel(item);
+              const low = level !== "in";
               const buy = parseAmount(item.buyingPrice);
               const sell = parseAmount(item.sellingPrice);
               const profit =
@@ -273,12 +321,18 @@ export default function InventoryPage() {
                   <TableCell>
                     <span
                       className={
-                        low
-                          ? "rounded-full bg-orange-100 px-2 py-1 text-xs font-medium text-orange-700"
-                          : "rounded-full bg-green-100 px-2 py-1 text-xs font-medium text-green-700"
+                        level === "out"
+                          ? "rounded-full bg-red-100 px-2 py-1 text-xs font-medium text-red-700"
+                          : level === "low"
+                            ? "rounded-full bg-orange-100 px-2 py-1 text-xs font-medium text-orange-700"
+                            : "rounded-full bg-green-100 px-2 py-1 text-xs font-medium text-green-700"
                       }
                     >
-                      {low ? t("inventory.lowStock") : t("inventory.inStock")}
+                      {level === "out"
+                        ? t("inventory.outOfStock")
+                        : level === "low"
+                          ? t("inventory.lowStock")
+                          : t("inventory.inStock")}
                     </span>
                   </TableCell>
                   <TableCell>
@@ -488,7 +542,7 @@ function ItemFormDialog({
   const categorySelectValue =
     categoryId && categories.some((c) => c.id === categoryId)
       ? categoryId
-      : undefined;
+      : "";
 
   const canSubmitAdd =
     categories.length > 0 &&

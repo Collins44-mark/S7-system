@@ -146,7 +146,8 @@ model RestockLog {
 model Customer {
   id         String   @id @default(cuid())
   name       String
-  phone      String
+  /** Null when a fully paid order was taken with a name only. */
+  phone      String?
   businessId String
   business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
   orders     Order[]

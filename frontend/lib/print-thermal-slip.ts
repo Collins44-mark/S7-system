@@ -78,24 +78,24 @@ export function thermalReceiptPage(
 <style>
   @page { size: ${pageSize}; margin: 0; }
   html, body { margin: 0; padding: 0; width: ${box}; height: auto; background: #fff; color: #000; }
-  body { font: 11px/1.25 Arial, Helvetica, sans-serif; }
+  body { font: 13px/1.3 Arial, Helvetica, sans-serif; }
   .slip { width: ${box}; padding: 3mm 3.5mm 4mm; box-sizing: border-box; }
-  h1 { margin: 0; font-size: 13px; font-weight: 800; line-height: 1.15; text-align: center; text-transform: uppercase; }
-  .sub { margin: 0; font-size: 8px; font-weight: 600; letter-spacing: 0.03em; line-height: 1.35; text-align: center; text-transform: uppercase; }
+  h1 { margin: 0; font-size: 18px; font-weight: 800; line-height: 1.15; text-align: center; text-transform: uppercase; }
+  .sub { margin: 0; font-size: 11px; font-weight: 700; letter-spacing: 0.02em; line-height: 1.35; text-align: center; text-transform: uppercase; }
   .gap { margin-top: 1.2mm; }
   .rule { border: 0; border-top: 1px solid #000; margin: 1.6mm 0; }
-  .banner { margin: 0.5mm 0; font-size: 13px; font-weight: 800; letter-spacing: 0.12em; text-align: center; text-transform: uppercase; }
-  .meta { display: flex; justify-content: space-between; gap: 3mm; margin: 0.5mm 0; font-size: 11px; }
+  .banner { margin: 0.5mm 0; font-size: 16px; font-weight: 800; letter-spacing: 0.12em; text-align: center; text-transform: uppercase; }
+  .meta { display: flex; justify-content: space-between; gap: 3mm; margin: 0.6mm 0; font-size: 13px; }
   .meta b { font-weight: 700; }
-  table { width: 100%; border-collapse: collapse; font-size: 10px; }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
   table { table-layout: fixed; }
   th { font-weight: 700; text-align: left; padding: 0.8mm 1mm 0.8mm 0; border-bottom: 1px solid #000; }
   td { padding: 1mm 1mm 0 0; vertical-align: top; }
   .n { text-align: right; white-space: nowrap; width: 18%; }
   th.n { text-align: right; }
-  .total { display: flex; justify-content: flex-end; gap: 8mm; margin-top: 0.6mm; font-size: 11px; font-weight: 700; }
-  .foot { margin: 0; font-size: 10px; text-align: center; }
-  .foot strong { display: block; margin-top: 1mm; font-size: 10px; text-transform: uppercase; }
+  .total { display: flex; justify-content: flex-end; gap: 8mm; margin-top: 0.6mm; font-size: 14px; font-weight: 800; }
+  .foot { margin: 0; font-size: 12px; font-weight: 700; text-align: center; }
+  .foot strong { display: block; margin-top: 1mm; font-size: 13px; font-weight: 800; text-transform: uppercase; }
 </style></head><body><div class="slip">
   <h1>${esc(parts.businessTitle)}</h1>
   ${location}

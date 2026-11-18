@@ -18,8 +18,12 @@ export class ReportsController {
   constructor(private readonly reports: ReportsService) {}
 
   @Get('dashboard')
-  dashboard(@CurrentUser() user: BusinessPrincipal) {
-    return this.reports.dashboard(user);
+  dashboard(
+    @CurrentUser() user: BusinessPrincipal,
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+  ) {
+    return this.reports.dashboard(user, from, to);
   }
 
   @Get('sales')

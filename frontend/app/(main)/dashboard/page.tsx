@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { api } from "@/lib/api";
 import { money } from "@/lib/format";
 import { useAsyncData } from "@/hooks/use-async-data";
@@ -62,10 +63,17 @@ export default function DashboardPage() {
   const userName =
     session?.role === "BUSINESS" ? (session.ownerName?.trim() ?? "") : "";
   const dateLocale = locale === "sw" ? "sw" : "en-GB";
+  const dayKey = now.toDateString();
   const load = useCallback(async (): Promise<DashboardRes> => {
-    const d = await api.get<DashboardRes>("/reports/dashboard");
+    const start = new Date();
+    start.setHours(0, 0, 0, 0);
+    const end = new Date();
+    end.setHours(23, 59, 59, 999);
+    const d = await api.get<DashboardRes>("/reports/dashboard", {
+      params: { from: start.toISOString(), to: end.toISOString() },
+    });
     return d.data;
-  }, []);
+  }, [dayKey]);
 
   const { data, error, loading, refetch } = useAsyncData(load, [load]);
 
@@ -169,7 +177,10 @@ export default function DashboardPage() {
                   {money(dash.totalProfitAllTime)}
                 </p>
               </div>
-              <div className={`${DASH_CARD} card-hover p-4 sm:p-5`}>
+              <Link
+                href="/inventory?stock=low"
+                className={`${DASH_CARD} card-hover block p-4 sm:p-5`}
+              >
                 <div className="mb-3 flex items-center justify-between gap-2">
                   <span className="text-xs font-medium uppercase tracking-wide text-slate-500">
                     {t("dashboard.lowStock")}
@@ -180,7 +191,7 @@ export default function DashboardPage() {
                 </div>
                 <p className="text-2xl font-bold text-slate-800">{dash.lowStockCount}</p>
                 <span className="text-xs text-orange-600">{t("dashboard.needsAttention")}</span>
-              </div>
+              </Link>
             </div>
             <div className={`${DASH_CARD} p-4 sm:p-5`}>
               <h3 className="mb-4 text-sm font-semibold text-slate-700">

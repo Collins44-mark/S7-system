@@ -44,12 +44,21 @@ export class OrdersRepository {
     const lines = dto.items;
 
     return this.prisma.$transaction(async (tx) => {
-      const phone = dto.customerPhone.trim();
+      const phone = dto.customerPhone?.trim() || null;
       const name = dto.customerName.trim();
-      let customer = await tx.customer.findUnique({
-        where: { businessId_phone: { businessId, phone } },
-      });
-      if (!customer) {
+      let customer = phone
+        ? await tx.customer.findUnique({
+            where: { businessId_phone: { businessId, phone } },
+          })
+        : null;
+      if (customer) {
+        if (customer.name !== name) {
+          customer = await tx.customer.update({
+            where: { id: customer.id },
+            data: { name },
+          });
+        }
+      } else if (!phone) {
         customer = await tx.customer.findFirst({
           where: {
             businessId,
@@ -57,18 +66,28 @@ export class OrdersRepository {
           },
           orderBy: { createdAt: 'asc' },
         });
-      }
-      if (customer) {
-        if (customer.phone === phone && customer.name !== name) {
-          customer = await tx.customer.update({
-            where: { id: customer.id },
-            data: { name },
+        if (!customer) {
+          customer = await tx.customer.create({
+            data: { businessId, name, phone: null },
           });
         }
       } else {
-        customer = await tx.customer.create({
-          data: { businessId, name, phone },
+        const sameName = await tx.customer.findFirst({
+          where: {
+            businessId,
+            name: { equals: name, mode: 'insensitive' },
+            phone: null,
+          },
+          orderBy: { createdAt: 'asc' },
         });
+        customer = sameName
+          ? await tx.customer.update({
+              where: { id: sameName.id },
+              data: { phone },
+            })
+          : await tx.customer.create({
+              data: { businessId, name, phone },
+            });
       }
 
       let total = new Prisma.Decimal(0);
@@ -130,6 +149,12 @@ export class OrdersRepository {
       }
 
       const balance = total.sub(amountPaid);
+      if (balance.gt(0) && !phone && !customer.phone) {
+        throw new CheckoutError(
+          'Enter a phone number when the payment is not complete',
+          'PHONE_REQUIRED',
+        );
+      }
       const status: OrderStatus = balance.lte(0)
         ? OrderStatus.COMPLETED
         : OrderStatus.PENDING;

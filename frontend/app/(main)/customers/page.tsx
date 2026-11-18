@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useI18n } from "@/lib/i18n-context";
 import { useSearch } from "@/lib/search-context";
 import { api } from "@/lib/api";
-import { money } from "@/lib/format";
+import { money, parseAmount } from "@/lib/format";
 import { getApiErrorMessage } from "@/lib/api-error";
 import { useAsyncData } from "@/hooks/use-async-data";
 import { ErrorBanner } from "@/components/error-banner";
@@ -231,7 +231,7 @@ export default function CustomersPage() {
       if (!matchesDate(activityAt(d), datePreset, dateFrom, dateTo)) return false;
       if (!qDebt) return true;
       const name = d.customer.name.toLowerCase();
-      const phone = d.customer.phone.toLowerCase();
+      const phone = (d.customer.phone ?? "").toLowerCase();
       const receipt = (d.order.receiptNumber ?? "").toLowerCase();
       return (
         name.includes(qDebt) ||
@@ -242,15 +242,31 @@ export default function CustomersPage() {
     });
   }, [list, qDebt, datePreset, dateFrom, dateTo]);
 
+  const debtorsTotal = useMemo(
+    () =>
+      filteredDebts.reduce((sum, debt) => {
+        if (isPaidOff(debt)) return sum;
+        return sum + (parseAmount(debt.amount) ?? 0);
+      }, 0),
+    [filteredDebts],
+  );
   const accountList = useMemo(() => accounts ?? [], [accounts]);
   const filteredAccounts = useMemo(() => {
     if (!qDebt) return accountList;
     return accountList.filter((c) => {
       const name = c.name.toLowerCase();
-      const phone = c.phone.toLowerCase();
+      const phone = (c.phone ?? "").toLowerCase();
       return name.includes(qDebt) || phone.includes(qDebt);
     });
   }, [accountList, qDebt]);
+  const accountsTotal = useMemo(
+    () =>
+      filteredAccounts.reduce(
+        (sum, customer) => sum + (parseAmount(customer.creditBalance) ?? 0),
+        0,
+      ),
+    [filteredAccounts],
+  );
 
   const pageSizes = [10, 40, 70, 100] as const;
   const [pageSize, setPageSize] = useState<(typeof pageSizes)[number]>(10);
@@ -448,6 +464,23 @@ export default function CustomersPage() {
         </div>
         )}
       </div>
+      {tab === "debtors" ? (
+        <div className="glass card-hover max-w-sm rounded-2xl p-5">
+          <span className="text-xs font-medium uppercase text-slate-500">
+            {t("customers.debtorsTotal")}
+          </span>
+          <p className="mt-2 text-2xl font-bold text-red-600">{money(debtorsTotal)}</p>
+          <p className="mt-1 text-xs text-slate-500">{t("customers.debtorsTotalHint")}</p>
+        </div>
+      ) : (
+        <div className="glass card-hover max-w-sm rounded-2xl p-5">
+          <span className="text-xs font-medium uppercase text-slate-500">
+            {t("customers.accountsTotal")}
+          </span>
+          <p className="mt-2 text-2xl font-bold text-emerald-700">{money(accountsTotal)}</p>
+          <p className="mt-1 text-xs text-slate-500">{t("customers.accountsTotalHint")}</p>
+        </div>
+      )}
       <div className="glass overflow-hidden rounded-2xl">
         {tab === "accounts" ? (
           accountsLoading && !accounts ? (
@@ -1034,7 +1067,7 @@ function DepositDialog({
             <div>
               <Label>{t("orders.selectAccount")}</Label>
               <Select
-                value={accountId || undefined}
+                value={accountId}
                 onValueChange={(v) => {
                   if (!v) return;
                   setAccountId(v);

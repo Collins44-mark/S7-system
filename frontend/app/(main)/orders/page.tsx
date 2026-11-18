@@ -119,7 +119,7 @@ type OrderRow = {
   paymentMethod: string;
   status: string;
   createdAt: string;
-  customer: { name: string; phone: string };
+  customer: { name: string; phone: string | null };
   orderItems: ReceiptOrder["orderItems"];
 };
 
@@ -130,7 +130,7 @@ export default function OrdersPage() {
   const [createOpen, setCreateOpen] = useState(false);
   const [receipt, setReceipt] = useState<ReceiptOrder | null>(null);
   const [receiptAutoPrint, setReceiptAutoPrint] = useState(false);
-  const [datePreset, setDatePreset] = useState<DatePreset>("all");
+  const [datePreset, setDatePreset] = useState<DatePreset>("week");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [customerFilter, setCustomerFilter] = useState("all");
@@ -194,7 +194,7 @@ export default function OrdersPage() {
       const num = o.orderNumber.toLowerCase();
       const receipt = receiptSearchText(o.receiptNumber);
       const cust = o.customer.name.toLowerCase();
-      const phone = o.customer.phone.toLowerCase();
+      const phone = (o.customer.phone ?? "").toLowerCase();
       const method = o.paymentMethod.toLowerCase();
       return (
         num.includes(q) ||
@@ -215,6 +215,20 @@ export default function OrdersPage() {
     methodFilter,
     statusFilter,
   ]);
+  const pageSizes = [10, 40, 70, 100] as const;
+  const [pageSize, setPageSize] = useState<(typeof pageSizes)[number]>(10);
+  const [page, setPage] = useState(1);
+  useEffect(() => {
+    setPage(1);
+  }, [q, datePreset, dateFrom, dateTo, customerFilter, methodFilter, statusFilter, pageSize]);
+  const pageCount = Math.max(1, Math.ceil(orderFiltered.length / pageSize));
+  const currentPage = Math.min(page, pageCount);
+  const pageRows = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return orderFiltered.slice(start, start + pageSize);
+  }, [orderFiltered, currentPage, pageSize]);
+  const rangeFrom = orderFiltered.length === 0 ? 0 : (currentPage - 1) * pageSize + 1;
+  const rangeTo = Math.min(currentPage * pageSize, orderFiltered.length);
 
   if (loading && !orders) {
     return (
@@ -432,7 +446,7 @@ export default function OrdersPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {orderFiltered.map((o) => (
+            {pageRows.map((o) => (
               <TableRow key={o.id} className="border-slate-100">
                 <TableCell className="font-medium">#{o.orderNumber}</TableCell>
                 <TableCell>{o.customer.name}</TableCell>
@@ -499,6 +513,61 @@ export default function OrdersPage() {
             {t("dashboard.noSearchResults")}
           </div>
         )}
+        {orderFiltered.length > 0 ? (
+          <div className="flex flex-col gap-3 border-t border-slate-100 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-xs text-slate-500">
+              {t("inventory.showing", {
+                from: rangeFrom,
+                to: rangeTo,
+                total: orderFiltered.length,
+              })}
+            </p>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-xs text-slate-500">{t("inventory.perPage")}</span>
+              <Select
+                value={String(pageSize)}
+                onValueChange={(value) => {
+                  const n = Number(value);
+                  if (n === 10 || n === 40 || n === 70 || n === 100) setPageSize(n);
+                }}
+              >
+                <SelectTrigger className="h-9 w-[5.5rem] rounded-xl" aria-label={t("inventory.perPage")}>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {pageSizes.map((n) => (
+                    <SelectItem key={n} value={String(n)}>
+                      {n}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                className="rounded-xl"
+                disabled={currentPage <= 1}
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+              >
+                {t("inventory.prev")}
+              </Button>
+              <span className="text-xs text-slate-600">
+                {t("inventory.pageOf", { page: currentPage, pages: pageCount })}
+              </span>
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                className="rounded-xl"
+                disabled={currentPage >= pageCount}
+                onClick={() => setPage((p) => Math.min(pageCount, p + 1))}
+              >
+                {t("inventory.next")}
+              </Button>
+            </div>
+          </div>
+        ) : null}
       </div>
 
       <CreateOrderDialog
@@ -549,12 +618,12 @@ function CreateOrderDialog({
   onCreated: (o: OrderRow, opts?: { autoPrint?: boolean }) => void;
   t: (key: string, vars?: Record<string, string | number>) => string;
 }) {
-  const { query: globalQuery } = useSearch();
   const [customerKind, setCustomerKind] = useState<"name" | "account">("name");
   const [accountId, setAccountId] = useState("");
   const [custName, setCustName] = useState("");
   const [custPhone, setCustPhone] = useState("");
   const [lines, setLines] = useState<Record<string, number>>({});
+  const [cartIds, setCartIds] = useState<string[]>([]);
   const [search, setSearch] = useState("");
   const [payMethod, setPayMethod] = useState<string>("CASH");
   const [amountPaid, setAmountPaid] = useState("");
@@ -572,6 +641,7 @@ function CreateOrderDialog({
       setCustName("");
       setCustPhone("");
       setLines({});
+      setCartIds([]);
       setSearch("");
       setPayMethod("CASH");
       setAmountPaid("");
@@ -586,16 +656,18 @@ function CreateOrderDialog({
     }
   }, [open]);
 
-  const filtered = useMemo(() => {
-    const g = globalQuery.trim().toLowerCase();
+  const searchHits = useMemo(() => {
     const s = search.trim().toLowerCase();
-    return items.filter((i) => {
-      const name = i.name.toLowerCase();
-      if (g && !name.includes(g)) return false;
-      if (s && !name.includes(s)) return false;
-      return true;
-    });
-  }, [items, search, globalQuery]);
+    if (!s) return [];
+    return items.filter((i) => i.name.toLowerCase().includes(s)).slice(0, 8);
+  }, [items, search]);
+  const cartItems = useMemo(
+    () =>
+      cartIds
+        .map((id) => items.find((item) => item.id === id))
+        .filter((item): item is ItemRow => item != null && (lines[item.id] ?? 0) > 0),
+    [cartIds, items, lines],
+  );
 
   const total = useMemo(() => {
     let t = 0;
@@ -632,6 +704,15 @@ function CreateOrderDialog({
     setAmountPaid(total > 0 ? formatAmountInput(total) : "");
   }, [open, total, payMethod, accountBalance]);
 
+  function rememberInCart(id: string) {
+    setCartIds((prev) => (prev.includes(id) ? prev : [...prev, id]));
+  }
+
+  function addSearchedItem(id: string) {
+    setQty(id, 1);
+    setSearch("");
+  }
+
   function setQty(id: string, delta: number) {
     const it = items.find((i) => i.id === id);
     if (!it) return;
@@ -639,6 +720,8 @@ function CreateOrderDialog({
     setLines((prev) => {
       const cur = prev[id] ?? 0;
       const next = Math.max(0, Math.min(stock, cur + delta));
+      if (next > 0) rememberInCart(id);
+      else setCartIds((ids) => ids.filter((itemId) => itemId !== id));
       const copy = { ...prev };
       if (next === 0) delete copy[id];
       else copy[id] = next;
@@ -652,6 +735,8 @@ function CreateOrderDialog({
     const stock = parseAmount(it.quantity) ?? 0;
     const v = parseFloat(String(raw).replace(",", "."));
     const next = Number.isFinite(v) ? Math.max(0, Math.min(stock, v)) : 0;
+    if (next > 0) rememberInCart(id);
+    else setCartIds((ids) => ids.filter((itemId) => itemId !== id));
     setLines((prev) => {
       const copy = { ...prev };
       if (next === 0) delete copy[id];
@@ -680,6 +765,10 @@ function CreateOrderDialog({
     const paid = parseAmount(amountPaid);
     if (paid == null || paid < 0) {
       setError(t("orders.amountPaidInvalid"));
+      return;
+    }
+    if (customerKind === "name" && paid + 0.001 < total && !custPhone.trim()) {
+      setError(t("orders.phoneRequired"));
       return;
     }
     setSubmitting(true);
@@ -767,7 +856,6 @@ function CreateOrderDialog({
                 <Input
                   value={custPhone}
                   onChange={(e) => setCustPhone(e.target.value)}
-                  required
                   className="mt-1 rounded-xl"
                 />
               </div>
@@ -776,7 +864,7 @@ function CreateOrderDialog({
             <div>
               <Label>{t("orders.selectAccount")}</Label>
               <Select
-                value={accountId || undefined}
+                value={accountId}
                 onValueChange={(v) => {
                   if (!v) return;
                   setAccountId(v);
@@ -819,17 +907,12 @@ function CreateOrderDialog({
             onChange={(e) => setSearch(e.target.value)}
             className="rounded-xl"
           />
-          <div className="max-h-56 space-y-2 overflow-y-auto pr-1">
-            {filtered.map((it) => {
-              const q = lines[it.id] ?? 0;
-              const stock = parseAmount(it.quantity) ?? 0;
-              return (
-                <div
-                  key={it.id}
-                  className="flex items-center justify-between rounded-xl border border-slate-100 bg-slate-50/80 p-3"
-                >
-                  <div>
-                    <p className="text-sm font-medium">{it.name}</p>
+          {searchHits.length > 0 ? (
+            <div className="max-h-40 space-y-2 overflow-y-auto rounded-xl border border-slate-100 p-2">
+              {searchHits.map((it) => (
+                <div key={it.id} className="flex items-center justify-between gap-3 px-1 py-1">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-medium">{it.name}</p>
                     <p className="text-xs text-slate-500">
                       {t("orders.stockLine", {
                         price: money(it.sellingPrice),
@@ -837,38 +920,74 @@ function CreateOrderDialog({
                       })}
                     </p>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      type="button"
-                      size="icon"
-                      variant="secondary"
-                      className="h-7 w-7"
-                      onClick={() => setQty(it.id, -1)}
-                    >
-                      −
-                    </Button>
-                    <Input
-                      type="number"
-                      step="any"
-                      min={0}
-                      max={stock}
-                      value={q === 0 ? "" : String(q)}
-                      onChange={(e) => setQtyValue(it.id, e.target.value)}
-                      className="h-8 w-20 rounded-lg text-center"
-                      aria-label="Quantity"
-                    />
-                    <Button
-                      type="button"
-                      size="icon"
-                      className="h-7 w-7 bg-blue-100 text-blue-700 hover:bg-blue-200"
-                      onClick={() => setQty(it.id, 1)}
-                    >
-                      +
-                    </Button>
-                  </div>
+                  <Button
+                    type="button"
+                    size="sm"
+                    className="rounded-lg bg-blue-100 text-blue-700 hover:bg-blue-200"
+                    onClick={() => addSearchedItem(it.id)}
+                  >
+                    {t("orders.add")}
+                  </Button>
                 </div>
-              );
-            })}
+              ))}
+            </div>
+          ) : null}
+          <div className="max-h-56 space-y-2 overflow-y-auto pr-1">
+            {cartItems.length === 0 ? (
+              <p className="rounded-xl border border-dashed border-slate-200 px-3 py-8 text-center text-sm text-slate-500">
+                {t("orders.cartEmpty")}
+              </p>
+            ) : (
+              cartItems.map((it) => {
+                const q = lines[it.id] ?? 0;
+                const stock = parseAmount(it.quantity) ?? 0;
+                return (
+                  <div
+                    key={it.id}
+                    className="flex items-center justify-between rounded-xl border border-slate-100 bg-slate-50/80 p-3"
+                  >
+                    <div>
+                      <p className="text-sm font-medium">{it.name}</p>
+                      <p className="text-xs text-slate-500">
+                        {t("orders.stockLine", {
+                          price: money(it.sellingPrice),
+                          qty: `${it.quantity} ${it.unit}`,
+                        })}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        type="button"
+                        size="icon"
+                        variant="secondary"
+                        className="h-7 w-7"
+                        onClick={() => setQty(it.id, -1)}
+                      >
+                        −
+                      </Button>
+                      <Input
+                        type="number"
+                        step="any"
+                        min={0}
+                        max={stock}
+                        value={q === 0 ? "" : String(q)}
+                        onChange={(e) => setQtyValue(it.id, e.target.value)}
+                        className="h-8 w-20 rounded-lg text-center"
+                        aria-label="Quantity"
+                      />
+                      <Button
+                        type="button"
+                        size="icon"
+                        className="h-7 w-7 bg-blue-100 text-blue-700 hover:bg-blue-200"
+                        onClick={() => setQty(it.id, 1)}
+                      >
+                        +
+                      </Button>
+                    </div>
+                  </div>
+                );
+              })
+            )}
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
             <div>

@@ -1,11 +1,13 @@
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import {
   ArrayMinSize,
   IsArray,
   IsIn,
   IsNotEmpty,
   IsNumber,
+  IsOptional,
   IsString,
+  MaxLength,
   Min,
   MinLength,
   ValidateNested,
@@ -38,9 +40,15 @@ export class CreateOrderDto {
   @MinLength(1)
   customerName: string;
 
+  @Transform(({ value }) => {
+    if (typeof value !== 'string') return value;
+    const trimmed = value.trim();
+    return trimmed.length > 0 ? trimmed : undefined;
+  })
+  @IsOptional()
   @IsString()
-  @MinLength(1)
-  customerPhone: string;
+  @MaxLength(40)
+  customerPhone?: string;
 
   @IsArray()
   @ArrayMinSize(1)
