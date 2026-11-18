@@ -12,6 +12,7 @@ import {
   LogOut,
   Menu,
   Package,
+  Search,
   Settings,
   ShoppingCart,
   Users,
@@ -23,6 +24,8 @@ import { useI18n } from "@/lib/i18n-context";
 import { useSearch } from "@/lib/search-context";
 import type { Locale } from "@/lib/messages";
 import { cn } from "@/lib/utils";
+import { BusinessWeatherProvider, useBusinessWeather } from "@/lib/business-weather";
+import { DashboardBackdrop } from "@/components/dashboard-backdrop";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -119,6 +122,63 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }
 
   return (
+    <BusinessWeatherProvider>
+    <ShellFrame
+      pathname={pathname}
+      drawerOpen={drawerOpen}
+      setDrawerOpen={setDrawerOpen}
+      query={query}
+      setQuery={setQuery}
+      locale={locale}
+      setLocale={setLocale}
+      handleLogout={handleLogout}
+      businessId={businessId ?? ""}
+      businessName={businessName}
+      businessLogo={businessLogo}
+      role={session?.role}
+      t={t}
+    >
+      {children}
+    </ShellFrame>
+    </BusinessWeatherProvider>
+  );
+}
+
+function ShellFrame({
+  children,
+  pathname,
+  drawerOpen,
+  setDrawerOpen,
+  query,
+  setQuery,
+  locale,
+  setLocale,
+  handleLogout,
+  businessId,
+  businessName,
+  businessLogo,
+  role,
+  t,
+}: {
+  children: React.ReactNode;
+  pathname: string;
+  drawerOpen: boolean;
+  setDrawerOpen: (open: boolean) => void;
+  query: string;
+  setQuery: (value: string) => void;
+  locale: Locale;
+  setLocale: (locale: Locale) => void;
+  handleLogout: () => void;
+  businessId: string;
+  businessName: string;
+  businessLogo: string | null;
+  role?: string;
+  t: (key: string) => string;
+}) {
+  const onDashboard = pathname === "/dashboard";
+  const { scene } = useBusinessWeather();
+
+  return (
     <div className="relative flex h-screen w-full overflow-hidden bg-gradient-to-br from-blue-50 via-slate-50 to-indigo-50">
       {drawerOpen && (
         <button
@@ -211,9 +271,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 </p>
               ) : (
                 <p className="text-xs text-slate-500">
-                  {session?.role === "SUPER_ADMIN"
-                    ? "Super admin"
-                    : t("nav.settings")}
+                  {role === "SUPER_ADMIN" ? "Super admin" : t("nav.settings")}
                 </p>
               )}
             </div>
@@ -230,30 +288,53 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </div>
       </aside>
 
-      <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
-        <header className="flex shrink-0 items-center justify-between gap-3 border-b border-white/60 glass px-4 py-3 sm:px-6">
+      <div className="relative flex min-w-0 flex-1 flex-col overflow-hidden">
+        {onDashboard ? <DashboardBackdrop scene={scene} /> : null}
+        <header
+          className={cn(
+            "relative z-20 flex shrink-0 items-center px-4 sm:px-6",
+            onDashboard ? "justify-between gap-5 sm:gap-6" : "justify-between gap-3",
+            onDashboard
+              ? "bg-transparent py-4"
+              : "glass border-b border-white/60 py-3",
+          )}
+        >
           <div className="flex min-w-0 flex-1 items-center gap-3">
             <Button
               variant="ghost"
               size="icon-sm"
-              className="h-10 w-10 shrink-0 rounded-2xl border border-slate-200/80 bg-white/70 text-slate-700 shadow-sm hover:bg-blue-500/10 hover:text-blue-700"
+              className={cn(
+                "h-10 w-10 shrink-0 text-slate-700 hover:bg-blue-500/10 hover:text-blue-700",
+                onDashboard
+                  ? "rounded-full border-0 bg-white shadow-[0_4px_14px_rgba(15,23,42,0.14)]"
+                  : "rounded-2xl border border-slate-200/80 bg-white/70 shadow-sm",
+              )}
               onClick={() => setDrawerOpen(true)}
               aria-label={t("sidebar.open")}
               aria-expanded={drawerOpen}
             >
               <Menu className="h-5 w-5" strokeWidth={2.25} />
             </Button>
-            <div className="relative min-w-0 max-w-md flex-1">
+            <div className={cn("relative min-w-0", onDashboard ? "flex-1" : "max-w-md flex-1")}>
               <Input
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder={t("common.search")}
-                className="rounded-2xl border-slate-200/50 bg-slate-100/80 pl-10 text-sm"
+                className={cn(
+                  "pl-10 text-sm",
+                  onDashboard
+                    ? "h-10 rounded-full border-white/80 bg-white/70 text-slate-800 shadow-sm backdrop-blur-md placeholder:text-slate-500"
+                    : "rounded-2xl border-slate-200/50 bg-slate-100/80",
+                )}
                 aria-label={t("common.search")}
               />
-              <span className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-xs text-slate-400">
-                ⌕
-              </span>
+              {onDashboard ? (
+                <Search className="pointer-events-none absolute top-1/2 left-3.5 h-4 w-4 -translate-y-1/2 text-slate-500" />
+              ) : (
+                <span className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-xs text-slate-400">
+                  ⌕
+                </span>
+              )}
             </div>
           </div>
           <Select
@@ -263,10 +344,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             }}
           >
             <SelectTrigger
-              className="h-9 w-[7.5rem] shrink-0 rounded-xl border-slate-200/80 text-xs sm:text-sm"
+              className={cn(
+                "shrink-0 text-xs sm:text-sm",
+                onDashboard
+                  ? "h-10 w-[4.5rem] rounded-full border-white/80 bg-white/75 px-3 text-slate-800 shadow-sm backdrop-blur-md"
+                  : "h-9 w-[7.5rem] rounded-xl border-slate-200/80",
+              )}
               aria-label={t("common.language")}
             >
-              <SelectValue />
+              <SelectValue>{onDashboard ? locale : undefined}</SelectValue>
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="en">{t("common.english")}</SelectItem>
@@ -274,7 +360,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </SelectContent>
           </Select>
         </header>
-        <main className="flex-1 overflow-y-auto p-4 sm:p-6">{children}</main>
+        <main className="relative z-10 flex-1 overflow-y-auto p-4 sm:p-6">{children}</main>
       </div>
     </div>
   );

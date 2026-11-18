@@ -4,6 +4,7 @@ import {
   ReportsService,
   type ReportPeriod,
 } from '../services/reports.service';
+import { WeatherService } from '../services/weather.service';
 import {
   CurrentUser,
   type BusinessPrincipal,
@@ -15,7 +16,15 @@ import { RolesGuard } from '../../auth/guards/roles.guard';
 @UseGuards(AuthGuard('jwt'), RolesGuard)
 @Roles('BUSINESS')
 export class ReportsController {
-  constructor(private readonly reports: ReportsService) {}
+  constructor(
+    private readonly reports: ReportsService,
+    private readonly weather: WeatherService,
+  ) {}
+
+  @Get('weather')
+  weatherNow(@CurrentUser() user: BusinessPrincipal) {
+    return this.weather.forBusiness(user.sub);
+  }
 
   @Get('dashboard')
   dashboard(

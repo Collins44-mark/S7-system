@@ -43,6 +43,7 @@ const en: Record<string, string> = {
   "dashboard.greeting.morning": "Good Morning,",
   "dashboard.greeting.afternoon": "Good Afternoon,",
   "dashboard.greeting.evening": "Good Evening,",
+  "dashboard.greeting.night": "Good Night,",
   "dashboard.subtitle":
     "Manage your sales, inventory, and business performance from one place.",
   "dashboard.loading": "Loading dashboard…",
@@ -382,6 +383,7 @@ const sw: Record<string, string> = {
   "dashboard.greeting.morning": "Habari za asubuhi,",
   "dashboard.greeting.afternoon": "Habari za mchana,",
   "dashboard.greeting.evening": "Habari za jioni,",
+  "dashboard.greeting.night": "Habari za usiku,",
   "dashboard.subtitle":
     "Simamia mauzo, hesabu, na utendaji wa biashara kutoka sehemu moja.",
   "dashboard.loading": "Inapakia dashibodi…",

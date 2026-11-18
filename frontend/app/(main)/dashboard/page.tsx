@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo } from "react";
 import Link from "next/link";
 import { api } from "@/lib/api";
 import { money } from "@/lib/format";
@@ -12,10 +12,18 @@ import { Badge } from "@/components/ui/badge";
 import { useI18n } from "@/lib/i18n-context";
 import { useSearch } from "@/lib/search-context";
 import { useAuthStore } from "@/lib/auth-store";
+import { useBusinessWeather } from "@/lib/business-weather";
+import { greetingKey, type WeatherReport } from "@/lib/weather-scene";
 import {
   AlertTriangle,
+  Cloud,
+  CloudFog,
+  CloudLightning,
+  CloudRain,
   DollarSign,
   Inbox,
+  Moon,
+  Sun,
   TrendingUp,
   Wallet,
 } from "lucide-react";
@@ -37,31 +45,55 @@ type DashboardRes = {
   }[];
 };
 
-const DASH_CARD = "glass rounded-2xl";
+const SUMMARY_CARD = "glass dash-sky-card card-hover rounded-2xl";
 
-function greetingKey(date: Date) {
-  const hour = date.getHours();
-  if (hour >= 5 && hour < 12) return "dashboard.greeting.morning";
-  if (hour >= 12 && hour < 17) return "dashboard.greeting.afternoon";
-  return "dashboard.greeting.evening";
-}
+function WeatherChip({
+  weather,
+  night,
+}: {
+  weather: WeatherReport;
+  night: boolean;
+}) {
+  const Icon =
+    weather.condition === "storm"
+      ? CloudLightning
+      : weather.condition === "rain"
+        ? CloudRain
+        : weather.condition === "fog"
+          ? CloudFog
+          : weather.condition === "cloudy"
+            ? Cloud
+            : night
+              ? Moon
+              : Sun;
+  const place = /tanzania/i.test(weather.locationName)
+    ? weather.locationName
+    : `${weather.locationName}, Tanzania`;
 
-function useNow() {
-  const [now, setNow] = useState(() => new Date());
-  useEffect(() => {
-    const id = window.setInterval(() => setNow(new Date()), 30_000);
-    return () => window.clearInterval(id);
-  }, []);
-  return now;
+  return (
+    <div className="dash-weather flex items-center gap-3 rounded-2xl px-3.5 py-2.5">
+      <Icon className="h-7 w-7 shrink-0 text-white" strokeWidth={1.75} />
+      <div className="min-w-0 text-left">
+        <p className="text-lg font-semibold leading-none text-white">
+          {Math.round(weather.temperatureC)}°C
+        </p>
+        <p className="mt-1 truncate text-xs text-white/80">{place}</p>
+      </div>
+    </div>
+  );
 }
 
 export default function DashboardPage() {
   const { t, locale } = useI18n();
   const { query } = useSearch();
-  const now = useNow();
   const session = useAuthStore((s) => s.session);
   const userName =
     session?.role === "BUSINESS" ? (session.ownerName?.trim() ?? "") : "";
+  const { now, timeZone, hour, weather, dark } = useBusinessWeather();
+  const titleClass =
+    "text-white drop-shadow-[0_2px_12px_rgba(0,0,0,0.55)]";
+  const mutedClass =
+    "text-white/95 drop-shadow-[0_1px_8px_rgba(0,0,0,0.5)]";
   const dateLocale = locale === "sw" ? "sw" : "en-GB";
   const dayKey = now.toDateString();
   const load = useCallback(async (): Promise<DashboardRes> => {
@@ -92,57 +124,58 @@ export default function DashboardPage() {
 
   const dash = data;
 
+  const heading = (
+    <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+      <div className="min-w-0 sm:max-w-[60%]">
+        <p className={`text-base font-medium leading-6 sm:text-lg ${mutedClass}`}>
+          {t(greetingKey(hour))}
+        </p>
+        {userName ? (
+          <p className={`mt-1 text-3xl font-bold leading-none tracking-tight sm:text-4xl ${titleClass}`}>
+            {userName}
+          </p>
+        ) : null}
+        <p className={`mt-3 max-w-xl text-sm leading-6 sm:text-base ${mutedClass}`}>
+          {t("dashboard.subtitle")}
+        </p>
+      </div>
+      <div className="flex flex-col items-end gap-3">
+        <div className={`text-right text-sm leading-5 ${mutedClass}`}>
+          <p>{now.toLocaleDateString(dateLocale, { weekday: "long", timeZone })}</p>
+          <p>
+            {now.toLocaleDateString(dateLocale, {
+              day: "numeric",
+              month: "long",
+              year: "numeric",
+              timeZone,
+            })}
+          </p>
+        </div>
+        {weather ? <WeatherChip weather={weather} night={dark} /> : null}
+      </div>
+    </div>
+  );
+
   return (
-    <div className="animate-in-page space-y-6">
+    <div className="animate-in-page flex flex-col gap-6">
         {loading && !dash ? (
-          <PageLoading label={t("dashboard.loading")} />
+          <>
+            {heading}
+            <PageLoading label={t("dashboard.loading")} />
+          </>
         ) : error && !dash ? (
           <div className="space-y-4">
-            <p className="text-base text-slate-500 sm:text-lg">{t(greetingKey(now))}</p>
-            {userName ? (
-              <p className="mt-1 text-2xl font-bold leading-tight text-slate-800">
-                {userName}
-              </p>
-            ) : null}
-            <p className="mt-3 max-w-xl text-sm leading-relaxed text-slate-500">
-              {t("dashboard.subtitle")}
-            </p>
+            {heading}
             <ErrorBanner message={error} onRetry={() => refetch()} />
           </div>
         ) : dash ? (
           <>
             {error && <ErrorBanner message={error} onRetry={() => refetch()} />}
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-              <div className="min-w-0 sm:max-w-[60%]">
-                <p className="text-base text-slate-500 sm:text-lg">{t(greetingKey(now))}</p>
-                {userName ? (
-                  <p className="mt-1 text-2xl font-bold leading-none text-slate-800">
-                    {userName}
-                  </p>
-                ) : null}
-                <p className="mt-3 max-w-xl text-sm leading-relaxed text-slate-500">
-                  {t("dashboard.subtitle")}
-                </p>
-              </div>
-              <div className="flex flex-col items-end gap-4">
-                <div className="text-right text-slate-600">
-                  <p className="text-sm">
-                    {now.toLocaleDateString(dateLocale, { weekday: "long" })}
-                  </p>
-                  <p className="text-sm">
-                    {now.toLocaleDateString(dateLocale, {
-                      day: "numeric",
-                      month: "long",
-                      year: "numeric",
-                    })}
-                  </p>
-                </div>
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-4">
-              <div className={`${DASH_CARD} card-hover p-4 sm:p-5`}>
+            {heading}
+            <div className="mt-8 grid grid-cols-2 gap-4 sm:mt-10 lg:grid-cols-4 lg:gap-5">
+              <div className={`${SUMMARY_CARD} p-4 sm:p-5`}>
                 <div className="mb-3 flex items-center justify-between gap-2">
-                  <span className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                  <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-700">
                     {t("dashboard.expenses")}
                   </span>
                   <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-red-100">
@@ -153,9 +186,9 @@ export default function DashboardPage() {
                   {money(dash.expensesTotal ?? 0)}
                 </p>
               </div>
-              <div className={`${DASH_CARD} card-hover p-4 sm:p-5`}>
+              <div className={`${SUMMARY_CARD} p-4 sm:p-5`}>
                 <div className="mb-3 flex items-center justify-between gap-2">
-                  <span className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                  <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-700">
                     {t("dashboard.stockValue")}
                   </span>
                   <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-indigo-100">
@@ -164,9 +197,9 @@ export default function DashboardPage() {
                 </div>
                 <p className="text-2xl font-bold text-slate-800">{money(dash.stockValue)}</p>
               </div>
-              <div className={`${DASH_CARD} card-hover p-4 sm:p-5`}>
+              <div className={`${SUMMARY_CARD} p-4 sm:p-5`}>
                 <div className="mb-3 flex items-center justify-between gap-2">
-                  <span className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                  <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-700">
                     {t("dashboard.profit")}
                   </span>
                   <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-100">
@@ -179,10 +212,10 @@ export default function DashboardPage() {
               </div>
               <Link
                 href="/inventory?stock=low"
-                className={`${DASH_CARD} card-hover block p-4 sm:p-5`}
+                className={`${SUMMARY_CARD} block p-4 sm:p-5`}
               >
                 <div className="mb-3 flex items-center justify-between gap-2">
-                  <span className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                  <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-700">
                     {t("dashboard.lowStock")}
                   </span>
                   <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-orange-100">
@@ -193,8 +226,8 @@ export default function DashboardPage() {
                 <span className="text-xs text-orange-600">{t("dashboard.needsAttention")}</span>
               </Link>
             </div>
-            <div className={`${DASH_CARD} p-4 sm:p-5`}>
-              <h3 className="mb-4 text-sm font-semibold text-slate-700">
+            <div className="glass dash-orders rounded-2xl p-4 sm:p-5">
+              <h3 className="mb-4 text-sm font-semibold text-slate-800">
                 {t("dashboard.recentOrders")}
               </h3>
               {dash.recentOrders.length === 0 ? (
@@ -213,7 +246,7 @@ export default function DashboardPage() {
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead>
-                      <tr className="text-left text-xs uppercase tracking-wide text-slate-500">
+                      <tr className="text-left text-[11px] font-medium uppercase tracking-wider text-slate-400">
                         <th className="pb-3">{t("dashboard.order")}</th>
                         <th className="pb-3">{t("dashboard.customer")}</th>
                         <th className="pb-3">{t("dashboard.amount")}</th>
@@ -222,10 +255,10 @@ export default function DashboardPage() {
                     </thead>
                     <tbody>
                       {recentFiltered.map((o) => (
-                        <tr key={o.id} className="border-t border-slate-100">
-                          <td className="py-3 font-medium">#{o.orderNumber}</td>
-                          <td>{o.customer.name}</td>
-                          <td>{money(o.totalAmount)}</td>
+                        <tr key={o.id} className="border-t border-slate-200/80">
+                          <td className="py-3.5 font-medium text-slate-800">#{o.orderNumber}</td>
+                          <td className="py-3.5 text-slate-700">{o.customer.name}</td>
+                          <td className="py-3.5 text-slate-700">{money(o.totalAmount)}</td>
                           <td>
                             <Badge
                               variant="secondary"

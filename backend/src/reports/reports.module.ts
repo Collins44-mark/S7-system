@@ -3,10 +3,11 @@ import { AuthModule } from '../auth/auth.module';
 import { ReportsService } from './services/reports.service';
 import { ReportsController } from './controllers/reports.controller';
 import { ReportsRepository } from './repositories/reports.repository';
+import { WeatherService } from './services/weather.service';
 
 @Module({
   imports: [AuthModule],
   controllers: [ReportsController],
-  providers: [ReportsService, ReportsRepository],
+  providers: [ReportsService, ReportsRepository, WeatherService],
 })
 export class ReportsModule {}
