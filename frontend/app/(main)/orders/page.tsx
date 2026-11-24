@@ -28,6 +28,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
   Table,
   TableBody,
   TableCell,
@@ -36,7 +42,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Plus, ShoppingCart } from "lucide-react";
+import { MoreVertical, Plus, ShoppingCart } from "lucide-react";
 
 const PAYMENT_CODES = [
   "CASH",
@@ -129,6 +135,7 @@ export default function OrdersPage() {
   const { query } = useSearch();
   const [items, setItems] = useState<ItemRow[]>([]);
   const [createOpen, setCreateOpen] = useState(false);
+  const [editingOrder, setEditingOrder] = useState<OrderRow | null>(null);
   const [receipt, setReceipt] = useState<ReceiptOrder | null>(null);
   const [receiptAutoPrint, setReceiptAutoPrint] = useState(false);
   const [datePreset, setDatePreset] = useState<DatePreset>("week");
@@ -143,10 +150,12 @@ export default function OrdersPage() {
     return data;
   }, []);
 
-  const { data: orders, error, loading, refetch } = useAsyncData(
-    loadOrders,
-    [loadOrders],
-  );
+  const {
+    data: orders,
+    error,
+    loading,
+    refetch,
+  } = useAsyncData(loadOrders, [loadOrders]);
 
   const loadItems = useCallback(async () => {
     const { data } = await api.get<ItemRow[]>("/items");
@@ -156,19 +165,22 @@ export default function OrdersPage() {
         return {
           id: i.id,
           name: i.name,
-          unit: typeof (i as unknown as { unit?: unknown }).unit === "string"
-            ? String((i as unknown as { unit?: unknown }).unit)
-            : "pcs",
+          unit:
+            typeof (i as unknown as { unit?: unknown }).unit === "string"
+              ? String((i as unknown as { unit?: unknown }).unit)
+              : "pcs",
           sellingPrice: sp != null ? formatAmountInput(sp) : "0",
-          quantity: String((i as unknown as { quantity?: unknown }).quantity ?? "0"),
+          quantity: String(
+            (i as unknown as { quantity?: unknown }).quantity ?? "0",
+          ),
         };
       }),
     );
   }, []);
 
   useEffect(() => {
-    if (createOpen) loadItems();
-  }, [createOpen, loadItems]);
+    if (createOpen || editingOrder) void loadItems();
+  }, [createOpen, editingOrder, loadItems]);
 
   const orderList = useMemo(() => orders ?? [], [orders]);
   const customerOptions = useMemo(() => {
@@ -221,20 +233,32 @@ export default function OrdersPage() {
   const [page, setPage] = useState(1);
   useEffect(() => {
     setPage(1);
-  }, [q, datePreset, dateFrom, dateTo, customerFilter, methodFilter, statusFilter, pageSize]);
+  }, [
+    q,
+    datePreset,
+    dateFrom,
+    dateTo,
+    customerFilter,
+    methodFilter,
+    statusFilter,
+    pageSize,
+  ]);
   const pageCount = Math.max(1, Math.ceil(orderFiltered.length / pageSize));
   const currentPage = Math.min(page, pageCount);
   const pageRows = useMemo(() => {
     const start = (currentPage - 1) * pageSize;
     return orderFiltered.slice(start, start + pageSize);
   }, [orderFiltered, currentPage, pageSize]);
-  const rangeFrom = orderFiltered.length === 0 ? 0 : (currentPage - 1) * pageSize + 1;
+  const rangeFrom =
+    orderFiltered.length === 0 ? 0 : (currentPage - 1) * pageSize + 1;
   const rangeTo = Math.min(currentPage * pageSize, orderFiltered.length);
 
   if (loading && !orders) {
     return (
       <div className="animate-in-page space-y-4">
-        <h1 className="text-2xl font-bold text-slate-800">{t("orders.title")}</h1>
+        <h1 className="text-2xl font-bold text-slate-800">
+          {t("orders.title")}
+        </h1>
         <PageLoading label={t("orders.loading")} />
         <div className="glass overflow-hidden rounded-2xl">
           <TableSkeletonRows rows={6} />
@@ -246,7 +270,9 @@ export default function OrdersPage() {
   if (error && !orders) {
     return (
       <div className="animate-in-page space-y-4">
-        <h1 className="text-2xl font-bold text-slate-800">{t("orders.title")}</h1>
+        <h1 className="text-2xl font-bold text-slate-800">
+          {t("orders.title")}
+        </h1>
         <ErrorBanner message={error} onRetry={() => refetch()} />
       </div>
     );
@@ -256,7 +282,9 @@ export default function OrdersPage() {
     <div className="animate-in-page space-y-6">
       {error && <ErrorBanner message={error} onRetry={() => refetch()} />}
       <div className="flex flex-wrap items-center justify-between gap-4">
-        <h1 className="text-2xl font-bold text-slate-800">{t("orders.title")}</h1>
+        <h1 className="text-2xl font-bold text-slate-800">
+          {t("orders.title")}
+        </h1>
         <Button
           className="btn-primary-gradient rounded-xl text-white"
           onClick={() => setCreateOpen(true)}
@@ -285,7 +313,10 @@ export default function OrdersPage() {
               }
             }}
           >
-            <SelectTrigger className="h-9 w-[9.5rem] rounded-xl" aria-label={t("orders.filter.date")}>
+            <SelectTrigger
+              className="h-9 w-[9.5rem] rounded-xl"
+              aria-label={t("orders.filter.date")}
+            >
               <SelectValue>
                 {datePreset === "all"
                   ? t("orders.filter.all")
@@ -306,7 +337,9 @@ export default function OrdersPage() {
               <SelectItem value="week">{t("orders.filter.week")}</SelectItem>
               <SelectItem value="month">{t("orders.filter.month")}</SelectItem>
               <SelectItem value="year">{t("orders.filter.year")}</SelectItem>
-              <SelectItem value="custom">{t("orders.filter.custom")}</SelectItem>
+              <SelectItem value="custom">
+                {t("orders.filter.custom")}
+              </SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -346,7 +379,10 @@ export default function OrdersPage() {
               if (v) setCustomerFilter(v);
             }}
           >
-            <SelectTrigger className="h-9 w-[9.5rem] rounded-xl" aria-label={t("orders.filter.customer")}>
+            <SelectTrigger
+              className="h-9 w-[9.5rem] rounded-xl"
+              aria-label={t("orders.filter.customer")}
+            >
               <SelectValue>
                 {customerFilter === "all"
                   ? t("orders.filter.all")
@@ -373,7 +409,10 @@ export default function OrdersPage() {
               if (v) setMethodFilter(v);
             }}
           >
-            <SelectTrigger className="h-9 w-[9.5rem] rounded-xl" aria-label={t("orders.filter.method")}>
+            <SelectTrigger
+              className="h-9 w-[9.5rem] rounded-xl"
+              aria-label={t("orders.filter.method")}
+            >
               <SelectValue>
                 {methodFilter === "all"
                   ? t("orders.filter.all")
@@ -400,7 +439,10 @@ export default function OrdersPage() {
               if (v) setStatusFilter(v);
             }}
           >
-            <SelectTrigger className="h-9 w-[9.5rem] rounded-xl" aria-label={t("orders.filter.status")}>
+            <SelectTrigger
+              className="h-9 w-[9.5rem] rounded-xl"
+              aria-label={t("orders.filter.status")}
+            >
               <SelectValue>
                 {statusFilter === "all"
                   ? t("orders.filter.all")
@@ -475,27 +517,42 @@ export default function OrdersPage() {
                   </Badge>
                 </TableCell>
                 <TableCell>
-                  <button
-                    type="button"
-                    className="text-xs text-blue-600 hover:underline"
-                    onClick={() => {
-                      setReceiptAutoPrint(false);
-                      setReceipt({
-                        orderNumber: o.orderNumber,
-                        receiptNumber: o.receiptNumber,
-                        createdAt: o.createdAt,
-                        otherCharges: o.otherCharges,
-                        totalAmount: o.totalAmount,
-                        amountPaid: o.amountPaid,
-                        balance: o.balance,
-                        paymentMethod: o.paymentMethod,
-                        customer: o.customer,
-                        orderItems: o.orderItems,
-                      });
-                    }}
-                  >
-                    {t("orders.receipt")}
-                  </button>
+                  <div className="flex items-center gap-1">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger
+                        className="inline-flex h-8 w-8 items-center justify-center rounded-md text-slate-600 hover:bg-slate-100"
+                        aria-label={t("orders.editOrder")}
+                      >
+                        <MoreVertical className="h-4 w-4" />
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => setEditingOrder(o)}>
+                          {t("orders.editOrder")}
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                    <button
+                      type="button"
+                      className="text-xs text-blue-600 hover:underline"
+                      onClick={() => {
+                        setReceiptAutoPrint(false);
+                        setReceipt({
+                          orderNumber: o.orderNumber,
+                          receiptNumber: o.receiptNumber,
+                          createdAt: o.createdAt,
+                          otherCharges: o.otherCharges,
+                          totalAmount: o.totalAmount,
+                          amountPaid: o.amountPaid,
+                          balance: o.balance,
+                          paymentMethod: o.paymentMethod,
+                          customer: o.customer,
+                          orderItems: o.orderItems,
+                        });
+                      }}
+                    >
+                      {t("orders.receipt")}
+                    </button>
+                  </div>
                 </TableCell>
               </TableRow>
             ))}
@@ -525,15 +582,21 @@ export default function OrdersPage() {
               })}
             </p>
             <div className="flex flex-wrap items-center gap-2">
-              <span className="text-xs text-slate-500">{t("inventory.perPage")}</span>
+              <span className="text-xs text-slate-500">
+                {t("inventory.perPage")}
+              </span>
               <Select
                 value={String(pageSize)}
                 onValueChange={(value) => {
                   const n = Number(value);
-                  if (n === 10 || n === 40 || n === 70 || n === 100) setPageSize(n);
+                  if (n === 10 || n === 40 || n === 70 || n === 100)
+                    setPageSize(n);
                 }}
               >
-                <SelectTrigger className="h-9 w-[5.5rem] rounded-xl" aria-label={t("inventory.perPage")}>
+                <SelectTrigger
+                  className="h-9 w-[5.5rem] rounded-xl"
+                  aria-label={t("inventory.perPage")}
+                >
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -595,6 +658,29 @@ export default function OrdersPage() {
           });
         }}
       />
+      <EditOrderDialog
+        order={editingOrder}
+        items={items}
+        t={t}
+        onClose={() => setEditingOrder(null)}
+        onUpdated={async (updated) => {
+          setEditingOrder(null);
+          await refetch();
+          setReceiptAutoPrint(false);
+          setReceipt({
+            orderNumber: updated.orderNumber,
+            receiptNumber: updated.receiptNumber,
+            createdAt: updated.createdAt,
+            otherCharges: updated.otherCharges,
+            totalAmount: updated.totalAmount,
+            amountPaid: updated.amountPaid,
+            balance: updated.balance,
+            paymentMethod: updated.paymentMethod,
+            customer: updated.customer,
+            orderItems: updated.orderItems,
+          });
+        }}
+      />
       <ReceiptDialog
         order={receipt}
         open={!!receipt}
@@ -653,9 +739,9 @@ function CreateOrderDialog({
       setWantPrintReceipt(true);
       setError(null);
       void api
-        .get<{ id: string; name: string; phone: string; creditBalance: string }[]>(
-          "/customers/accounts",
-        )
+        .get<
+          { id: string; name: string; phone: string; creditBalance: string }[]
+        >("/customers/accounts")
         .then((res) => setAccounts(res.data))
         .catch(() => setAccounts([]));
     }
@@ -670,7 +756,9 @@ function CreateOrderDialog({
     () =>
       cartIds
         .map((id) => items.find((item) => item.id === id))
-        .filter((item): item is ItemRow => item != null && (lines[item.id] ?? 0) > 0),
+        .filter(
+          (item): item is ItemRow => item != null && (lines[item.id] ?? 0) > 0,
+        ),
     [cartIds, items, lines],
   );
 
@@ -844,7 +932,9 @@ function CreateOrderDialog({
             >
               <SelectTrigger className="mt-1 w-full rounded-xl">
                 <SelectValue>
-                  {customerKind === "account" ? t("payment.ACCOUNT") : t("orders.name")}
+                  {customerKind === "account"
+                    ? t("payment.ACCOUNT")
+                    : t("orders.name")}
                 </SelectValue>
               </SelectTrigger>
               <SelectContent>
@@ -923,7 +1013,10 @@ function CreateOrderDialog({
           {searchHits.length > 0 ? (
             <div className="max-h-40 space-y-2 overflow-y-auto rounded-xl border border-slate-100 p-2">
               {searchHits.map((it) => (
-                <div key={it.id} className="flex items-center justify-between gap-3 px-1 py-1">
+                <div
+                  key={it.id}
+                  className="flex items-center justify-between gap-3 px-1 py-1"
+                >
                   <div className="min-w-0">
                     <p className="truncate text-sm font-medium">{it.name}</p>
                     <p className="text-xs text-slate-500">
@@ -1029,7 +1122,9 @@ function CreateOrderDialog({
               {payMethod === "ACCOUNT" && customerKind === "name" && (
                 <p className="mt-1 text-xs text-slate-500">
                   {accountMatch
-                    ? t("customers.accountHint", { amount: money(accountBalance) })
+                    ? t("customers.accountHint", {
+                        amount: money(accountBalance),
+                      })
                     : t("customers.noAccount")}
                 </p>
               )}
@@ -1060,11 +1155,15 @@ function CreateOrderDialog({
             </div>
           </div>
           <div className="flex items-center justify-between rounded-xl bg-blue-50 p-3">
-            <span className="text-sm text-slate-600">{t("orders.totalLabel")}</span>
+            <span className="text-sm text-slate-600">
+              {t("orders.totalLabel")}
+            </span>
             <span className="font-bold text-blue-700">{money(total)}</span>
           </div>
           <div className="flex items-center justify-between rounded-xl bg-orange-50 p-3">
-            <span className="text-sm text-slate-600">{t("orders.balanceDue")}</span>
+            <span className="text-sm text-slate-600">
+              {t("orders.balanceDue")}
+            </span>
             <span className="font-bold text-orange-600">
               {money(Math.max(0, -balance))}
             </span>
@@ -1086,6 +1185,343 @@ function CreateOrderDialog({
             {submitting ? t("orders.processing") : t("orders.completeOrder")}
           </Button>
         </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function EditOrderDialog({
+  order,
+  items,
+  onClose,
+  onUpdated,
+  t,
+}: {
+  order: OrderRow | null;
+  items: ItemRow[];
+  onClose: () => void;
+  onUpdated: (order: OrderRow) => void | Promise<void>;
+  t: (key: string, vars?: Record<string, string | number>) => string;
+}) {
+  const [lines, setLines] = useState<Record<string, number>>({});
+  const [cartIds, setCartIds] = useState<string[]>([]);
+  const [search, setSearch] = useState("");
+  const [amountPaid, setAmountPaid] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+
+  const originalLinesById = useMemo(() => {
+    const map = new Map<string, ReceiptOrder["orderItems"][number]>();
+    if (!order) return map;
+    for (const line of order.orderItems) {
+      map.set(line.item.id, line);
+    }
+    return map;
+  }, [order]);
+
+  useEffect(() => {
+    if (!order) return;
+    const nextLines: Record<string, number> = {};
+    const nextIds: string[] = [];
+    for (const line of order.orderItems) {
+      const item = items.find((candidate) => candidate.id === line.item.id);
+      if (!item) continue;
+      const quantity = parseAmount(line?.quantity) ?? 0;
+      if (quantity > 0) {
+        nextLines[item.id] = quantity;
+        nextIds.push(item.id);
+      }
+    }
+    setLines(nextLines);
+    setCartIds(nextIds);
+    setSearch("");
+    setAmountPaid(formatAmountInput(parseAmount(order.amountPaid) ?? 0));
+    setError(null);
+  }, [items, order]);
+
+  const searchHits = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return [];
+    return items
+      .filter((item) => item.name.toLowerCase().includes(q))
+      .slice(0, 8);
+  }, [items, search]);
+  const cartItems = useMemo(
+    () =>
+      cartIds
+        .map((id) => items.find((item) => item.id === id))
+        .filter(
+          (item): item is ItemRow => item != null && (lines[item.id] ?? 0) > 0,
+        ),
+    [cartIds, items, lines],
+  );
+
+  function originalQuantity(id: string) {
+    return parseAmount(originalLinesById.get(id)?.quantity) ?? 0;
+  }
+
+  function availableForOrder(item: ItemRow) {
+    return (parseAmount(item.quantity) ?? 0) + originalQuantity(item.id);
+  }
+
+  function rememberInCart(id: string) {
+    setCartIds((current) =>
+      current.includes(id) ? current : [...current, id],
+    );
+  }
+
+  function setQty(id: string, delta: number) {
+    const item = items.find((candidate) => candidate.id === id);
+    if (!item) return;
+    const maximum = availableForOrder(item);
+    setLines((current) => {
+      const nextQuantity = Math.max(
+        0,
+        Math.min(maximum, (current[id] ?? 0) + delta),
+      );
+      const next = { ...current };
+      if (nextQuantity > 0) {
+        next[id] = nextQuantity;
+        rememberInCart(id);
+      } else {
+        delete next[id];
+        setCartIds((ids) => ids.filter((itemId) => itemId !== id));
+      }
+      return next;
+    });
+  }
+
+  function setQtyValue(id: string, raw: string) {
+    const item = items.find((candidate) => candidate.id === id);
+    if (!item) return;
+    const parsed = parseFloat(raw.replace(",", "."));
+    const nextQuantity = Number.isFinite(parsed)
+      ? Math.max(0, Math.min(availableForOrder(item), parsed))
+      : 0;
+    if (nextQuantity > 0) rememberInCart(id);
+    else setCartIds((ids) => ids.filter((itemId) => itemId !== id));
+    setLines((current) => {
+      const next = { ...current };
+      if (nextQuantity > 0) next[id] = nextQuantity;
+      else delete next[id];
+      return next;
+    });
+  }
+
+  const itemsTotal = useMemo(
+    () =>
+      Object.entries(lines).reduce((sum, [id, quantity]) => {
+        const item = items.find((candidate) => candidate.id === id);
+        if (!item || quantity <= 0) return sum;
+        const price =
+          parseAmount(originalLinesById.get(id)?.unitSellPrice) ??
+          parseAmount(item.sellingPrice) ??
+          0;
+        return sum + price * quantity;
+      }, 0),
+    [items, lines, originalLinesById],
+  );
+  const otherCharges = parseAmount(order?.otherCharges) ?? 0;
+  const total = itemsTotal + otherCharges;
+  const paid = parseAmount(amountPaid) ?? 0;
+  const balance = Math.max(0, total - paid);
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!order) return;
+    setError(null);
+    const orderItems = Object.entries(lines)
+      .filter(([, quantity]) => quantity > 0)
+      .map(([itemId, quantity]) => ({ itemId, quantity }));
+    if (!orderItems.length) {
+      setError(t("orders.addOneLine"));
+      return;
+    }
+    const paidAmount = parseAmount(amountPaid);
+    if (paidAmount == null || paidAmount < 0) {
+      setError(t("orders.amountPaidInvalid"));
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const { data } = await api.patch<OrderRow>(`/orders/${order.id}`, {
+        items: orderItems,
+        amountPaid: paidAmount,
+      });
+      await onUpdated(data);
+    } catch (err: unknown) {
+      const message =
+        err &&
+        typeof err === "object" &&
+        "response" in err &&
+        err.response &&
+        typeof err.response === "object" &&
+        "data" in err.response &&
+        err.response.data &&
+        typeof err.response.data === "object" &&
+        "message" in err.response.data
+          ? String((err.response.data as { message: unknown }).message)
+          : t("orders.updateOrderFailed");
+      setError(Array.isArray(message) ? message.join(", ") : message);
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <Dialog open={!!order} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="glass max-h-[90vh] max-w-lg overflow-y-auto rounded-2xl">
+        <DialogHeader>
+          <DialogTitle>{t("orders.editOrder")}</DialogTitle>
+        </DialogHeader>
+        {order ? (
+          <form onSubmit={submit} className="space-y-4">
+            {error ? (
+              <p className="text-sm text-red-600" role="alert">
+                {error}
+              </p>
+            ) : null}
+            <div className="rounded-xl bg-slate-50 p-3 text-sm text-slate-700">
+              <p className="font-medium text-slate-900">
+                {order.customer.name}
+              </p>
+              <p>{t("orders.editOrderHint")}</p>
+            </div>
+            <Input
+              placeholder={t("orders.searchItems")}
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="rounded-xl"
+            />
+            {searchHits.length > 0 ? (
+              <div className="max-h-40 space-y-2 overflow-y-auto rounded-xl border border-slate-100 p-2">
+                {searchHits.map((item) => (
+                  <div
+                    key={item.id}
+                    className="flex items-center justify-between gap-3 px-1 py-1"
+                  >
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-medium">
+                        {item.name}
+                      </p>
+                      <p className="text-xs text-slate-500">
+                        {t("orders.stockLine", {
+                          price: money(item.sellingPrice),
+                          qty: `${item.quantity} ${item.unit}`,
+                        })}
+                      </p>
+                    </div>
+                    <Button
+                      type="button"
+                      size="sm"
+                      className="rounded-lg bg-blue-100 text-blue-700 hover:bg-blue-200"
+                      onClick={() => {
+                        setQty(item.id, 1);
+                        setSearch("");
+                      }}
+                    >
+                      {t("orders.add")}
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            ) : null}
+            <div className="max-h-64 space-y-2 overflow-y-auto pr-1">
+              {cartItems.map((item) => {
+                const quantity = lines[item.id] ?? 0;
+                const price =
+                  parseAmount(originalLinesById.get(item.id)?.unitSellPrice) ??
+                  parseAmount(item.sellingPrice) ??
+                  0;
+                return (
+                  <div
+                    key={item.id}
+                    className="flex items-center justify-between rounded-xl border border-slate-100 bg-slate-50/80 p-3"
+                  >
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-medium">
+                        {item.name}
+                      </p>
+                      <p className="text-xs text-slate-500">
+                        {t("orders.stockLine", {
+                          price: money(price),
+                          qty: `${item.quantity} ${item.unit}`,
+                        })}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        type="button"
+                        size="icon"
+                        variant="secondary"
+                        className="h-7 w-7"
+                        onClick={() => setQty(item.id, -1)}
+                      >
+                        −
+                      </Button>
+                      <Input
+                        type="number"
+                        step="any"
+                        min={0}
+                        max={availableForOrder(item)}
+                        value={quantity === 0 ? "" : String(quantity)}
+                        onChange={(e) => setQtyValue(item.id, e.target.value)}
+                        className="h-8 w-20 rounded-lg text-center"
+                        aria-label="Quantity"
+                      />
+                      <Button
+                        type="button"
+                        size="icon"
+                        className="h-7 w-7 bg-blue-100 text-blue-700 hover:bg-blue-200"
+                        onClick={() => setQty(item.id, 1)}
+                      >
+                        +
+                      </Button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            <div className="space-y-2 rounded-xl bg-blue-50 p-3 text-sm">
+              {otherCharges > 0 ? (
+                <div className="flex justify-between text-slate-600">
+                  <span>{t("orders.otherCharges")}</span>
+                  <span>{money(otherCharges)}</span>
+                </div>
+              ) : null}
+              <div className="flex justify-between font-bold text-blue-700">
+                <span>{t("orders.totalLabel")}</span>
+                <span>{money(total)}</span>
+              </div>
+              <div>
+                <Label className="text-slate-600">
+                  {t("orders.amountPaid")}
+                </Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  min={0}
+                  value={amountPaid}
+                  onChange={(e) => setAmountPaid(e.target.value)}
+                  className="mt-1 bg-white"
+                />
+              </div>
+              <div className="flex justify-between font-medium text-orange-600">
+                <span>{t("orders.balanceDue")}</span>
+                <span>{money(balance)}</span>
+              </div>
+            </div>
+            <Button
+              type="submit"
+              disabled={submitting}
+              className="btn-primary-gradient w-full rounded-xl text-white"
+            >
+              {submitting
+                ? t("orders.updatingOrder")
+                : t("orders.updateReceipt")}
+            </Button>
+          </form>
+        ) : null}
       </DialogContent>
     </Dialog>
   );

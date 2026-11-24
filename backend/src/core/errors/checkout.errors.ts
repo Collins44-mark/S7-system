@@ -6,7 +6,10 @@ export class CheckoutError extends Error {
       | 'INSUFFICIENT_STOCK'
       | 'AMOUNT_EXCEEDS_TOTAL'
       | 'INSUFFICIENT_ACCOUNT'
-      | 'PHONE_REQUIRED',
+      | 'PHONE_REQUIRED'
+      | 'ORDER_CANCELLED'
+      | 'DUPLICATE_ORDER_ITEM'
+      | 'AMOUNT_BELOW_RECORDED_PAYMENTS',
     public readonly detail?: string,
   ) {
     super(message);

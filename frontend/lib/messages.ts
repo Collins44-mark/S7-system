@@ -134,13 +134,21 @@ const en: Record<string, string> = {
   "orders.searchItems": "Search items…",
   "orders.printReceiptAfter": "Print receipt after sale",
   "orders.newOrderTitle": "New order",
+  "orders.editOrder": "Edit order",
+  "orders.editOrderHint":
+    "Update items or amount paid, then save to issue the corrected receipt.",
+  "orders.updateReceipt": "Update receipt",
+  "orders.updatingOrder": "Updating order…",
+  "orders.updateOrderFailed": "Could not update the order",
   "orders.customerSection": "Customer",
   "orders.lineItemsSection": "Line items",
   "orders.checkoutSection": "Checkout",
   "orders.name": "Name",
   "orders.phone": "Phone",
-  "orders.phoneHint": "Required only when the customer does not pay the full amount.",
-  "orders.phoneRequired": "Enter a phone number when the amount paid is not the full total.",
+  "orders.phoneHint":
+    "Required only when the customer does not pay the full amount.",
+  "orders.phoneRequired":
+    "Enter a phone number when the amount paid is not the full total.",
   "orders.cartEmpty": "No items yet. Search and add items to this order.",
   "orders.add": "Add",
   "orders.selectAccount": "Select an account",
@@ -150,7 +158,8 @@ const en: Record<string, string> = {
   "orders.nextCheckout": "Next: checkout",
   "orders.totalLabel": "Total",
   "orders.otherCharges": "Other charges",
-  "orders.otherChargesInvalid": "Other charges must be a valid non-negative amount.",
+  "orders.otherChargesInvalid":
+    "Other charges must be a valid non-negative amount.",
   "orders.paymentMethod": "Payment method",
   "orders.amountPaid": "Amount paid",
   "orders.balanceDue": "Balance due",
@@ -299,10 +308,12 @@ const en: Record<string, string> = {
   "settings.posSection": "POS receipt",
   "settings.receiptWidth": "Receipt width (mm)",
   "settings.receiptWidthAuto": "Auto",
-  "settings.receiptWidthHint": "Leave blank to fit the receipt printer. Or set 48–80 mm.",
+  "settings.receiptWidthHint":
+    "Leave blank to fit the receipt printer. Or set 48–80 mm.",
   "settings.printAfterSale": "Print receipt after sale",
   "settings.printTest": "Print test receipt",
-  "settings.widthError": "Receipt width must be between 48 and 80 mm, or left blank.",
+  "settings.widthError":
+    "Receipt width must be between 48 and 80 mm, or left blank.",
   "settings.printersTitle": "Printers",
   "settings.printersScan": "Scan printers",
   "settings.printersColDestination": "Print destination",
@@ -334,7 +345,8 @@ const en: Record<string, string> = {
   "receipt.amount": "Amount",
   "receipt.otherCharges": "Other charges",
   "receipt.thanks": "Thank you for your purchase!",
-  "receipt.debtNote": "Debt payment received. This receipt is not for collecting goods.",
+  "receipt.debtNote":
+    "Debt payment received. This receipt is not for collecting goods.",
   "receipt.print": "Print receipt",
   "receipt.export": "Export",
 
@@ -476,6 +488,12 @@ const sw: Record<string, string> = {
   "orders.searchItems": "Tafuta bidhaa…",
   "orders.printReceiptAfter": "Chapisha risiti baada ya mauzo",
   "orders.newOrderTitle": "Agizo jipya",
+  "orders.editOrder": "Hariri agizo",
+  "orders.editOrderHint":
+    "Sasisha bidhaa au kiasi kilicholipwa, kisha uhifadhi risiti iliyosahihishwa.",
+  "orders.updateReceipt": "Sasisha risiti",
+  "orders.updatingOrder": "Inasasisha agizo…",
+  "orders.updateOrderFailed": "Imeshindikana kusasisha agizo",
   "orders.customerSection": "Mteja",
   "orders.lineItemsSection": "Bidhaa",
   "orders.checkoutSection": "Malipo",
@@ -483,7 +501,8 @@ const sw: Record<string, string> = {
   "orders.phone": "Simu",
   "orders.phoneHint": "Inahitajika tu ikiwa mteja hajalipa kiasi chote.",
   "orders.phoneRequired": "Weka nambari ya simu ikiwa malipo hayajakamilika.",
-  "orders.cartEmpty": "Hakuna bidhaa bado. Tafuta na uongeze kwenye agizo hili.",
+  "orders.cartEmpty":
+    "Hakuna bidhaa bado. Tafuta na uongeze kwenye agizo hili.",
   "orders.add": "Ongeza",
   "orders.selectAccount": "Chagua akaunti",
   "orders.accountRequired": "Chagua akaunti ili kuendelea.",
@@ -492,7 +511,8 @@ const sw: Record<string, string> = {
   "orders.nextCheckout": "Ifuatayo: malipo",
   "orders.totalLabel": "Jumla",
   "orders.otherCharges": "Gharama nyingine",
-  "orders.otherChargesInvalid": "Gharama nyingine lazima iwe kiasi halali kisicho hasi.",
+  "orders.otherChargesInvalid":
+    "Gharama nyingine lazima iwe kiasi halali kisicho hasi.",
   "orders.paymentMethod": "Njia ya malipo",
   "orders.amountPaid": "Kiasi kilicholipwa",
   "orders.balanceDue": "Salio la deni",
@@ -641,7 +661,8 @@ const sw: Record<string, string> = {
   "settings.posSection": "Risiti ya POS",
   "settings.receiptWidth": "Upana wa risiti (mm)",
   "settings.receiptWidthAuto": "Otomatiki",
-  "settings.receiptWidthHint": "Acha wazi ili ilingane na printa ya risiti. Au weka 48–80 mm.",
+  "settings.receiptWidthHint":
+    "Acha wazi ili ilingane na printa ya risiti. Au weka 48–80 mm.",
   "settings.printAfterSale": "Chapisha risiti baada ya mauzo",
   "settings.printTest": "Chapisha risiti ya majaribio",
   "settings.widthError": "Upana uwe kati ya 48 na 80 mm, au uache wazi.",
@@ -676,7 +697,8 @@ const sw: Record<string, string> = {
   "receipt.amount": "Kiasi",
   "receipt.otherCharges": "Gharama nyingine",
   "receipt.thanks": "Asante kwa ununuzi wako!",
-  "receipt.debtNote": "Malipo ya deni yamepokelewa. Risiti hii si ya kuchukua bidhaa.",
+  "receipt.debtNote":
+    "Malipo ya deni yamepokelewa. Risiti hii si ya kuchukua bidhaa.",
   "receipt.print": "Chapisha risiti",
   "receipt.export": "Hamisha",
 

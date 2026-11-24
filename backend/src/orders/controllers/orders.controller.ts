@@ -1,4 +1,12 @@
-import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Patch,
+  Post,
+  UseGuards,
+} from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { OrdersService } from '../services/orders.service';
 import {
@@ -6,6 +14,7 @@ import {
   type BusinessPrincipal,
 } from '../../common/decorators/current-user.decorator';
 import { CreateOrderDto } from '../dto/create-order.dto';
+import { UpdateOrderDto } from '../dto/update-order.dto';
 import { Roles } from '../../auth/decorators/roles.decorator';
 import { RolesGuard } from '../../auth/guards/roles.guard';
 
@@ -28,5 +37,14 @@ export class OrdersController {
   @Post()
   create(@CurrentUser() user: BusinessPrincipal, @Body() dto: CreateOrderDto) {
     return this.orders.create(user, dto);
+  }
+
+  @Patch(':id')
+  update(
+    @CurrentUser() user: BusinessPrincipal,
+    @Param('id') id: string,
+    @Body() dto: UpdateOrderDto,
+  ) {
+    return this.orders.update(user, id, dto);
   }
 }

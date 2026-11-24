@@ -65,7 +65,10 @@ function slipHtml(input: {
   const extras =
     owed > 0
       ? [
-          { label: input.t("receipt.paid"), value: slipAmount(input.order.amountPaid) },
+          {
+            label: input.t("receipt.paid"),
+            value: slipAmount(input.order.amountPaid),
+          },
           { label: input.t("receipt.debt"), value: slipAmount(owed) },
         ]
       : [];
@@ -98,12 +101,14 @@ function slipHtml(input: {
             amount: slipAmount(li.lineTotal),
           })),
           ...(Number(input.order.otherCharges ?? 0) > 0
-            ? [{
-                description: input.t("receipt.otherCharges"),
-                qty: "—",
-                rate: "—",
-                amount: slipAmount(input.order.otherCharges ?? "0"),
-              }]
+            ? [
+                {
+                  description: input.t("receipt.otherCharges"),
+                  qty: "—",
+                  rate: "—",
+                  amount: slipAmount(input.order.otherCharges ?? "0"),
+                },
+              ]
             : []),
         ],
     totalLabel: input.t("receipt.total"),
@@ -149,7 +154,8 @@ async function downloadReceiptPdf(input: {
   const width = input.paperMm ?? 80;
   const line = 4.2;
   const debt = input.kind === "debt";
-  const hasOtherCharges = !debt && (parseAmount(input.otherCharges ?? "0") ?? 0) > 0;
+  const hasOtherCharges =
+    !debt && (parseAmount(input.otherCharges ?? "0") ?? 0) > 0;
   const itemLines = debt ? 0 : input.items.length + (hasOtherCharges ? 1 : 0);
   const height = 28 + itemLines * line + 36;
   const doc = new jsPDF({
@@ -241,7 +247,7 @@ export type ReceiptOrder = {
     quantity: string;
     unitSellPrice: string;
     lineTotal: string;
-    item: { name: string; unit?: string };
+    item: { id: string; name: string; unit?: string };
   }[];
   /** Debt receipts reuse the sale layout without the item list. */
   kind?: "sale" | "debt";
@@ -274,7 +280,10 @@ export function ReceiptDialog({
   useEffect(() => {
     if (!open || !order || !autoPrint) return;
     const sessionNow = useAuthStore.getState().session;
-    if (sessionNow?.role === "BUSINESS" && sessionNow.printReceiptAfterSale === false) {
+    if (
+      sessionNow?.role === "BUSINESS" &&
+      sessionNow.printReceiptAfterSale === false
+    ) {
       return;
     }
     const timer = window.setTimeout(() => {
@@ -325,26 +334,46 @@ export function ReceiptDialog({
             }}
           >
             <div className="border-b border-black pb-2 text-center text-black">
-              <h2 className="text-xl font-extrabold uppercase leading-tight">{businessTitle}</h2>
+              <h2 className="text-xl font-extrabold uppercase leading-tight">
+                {businessTitle}
+              </h2>
               {session?.role === "BUSINESS" && session.address
-                ? session.address.split(/\r?\n/).filter((line) => line.trim()).map((line, index) => (
-                    <p key={`${index}-${line}`} className="text-xs font-bold uppercase leading-tight tracking-wide">{line}</p>
-                  ))
+                ? session.address
+                    .split(/\r?\n/)
+                    .filter((line) => line.trim())
+                    .map((line, index) => (
+                      <p
+                        key={`${index}-${line}`}
+                        className="text-xs font-bold uppercase leading-tight tracking-wide"
+                      >
+                        {line}
+                      </p>
+                    ))
                 : null}
               {session?.role === "BUSINESS" && session.poBox ? (
-                <p className="text-xs font-bold uppercase leading-tight tracking-wide">P.O.BOX {session.poBox}</p>
+                <p className="text-xs font-bold uppercase leading-tight tracking-wide">
+                  P.O.BOX {session.poBox}
+                </p>
               ) : null}
               {session?.role === "BUSINESS" && session.phone ? (
-                <p className="text-xs font-bold uppercase leading-tight tracking-wide">MOB: {session.phone}</p>
+                <p className="text-xs font-bold uppercase leading-tight tracking-wide">
+                  MOB: {session.phone}
+                </p>
               ) : null}
               {session?.role === "BUSINESS" && session.email ? (
-                <p className="text-xs font-bold uppercase leading-tight tracking-wide">EMAIL: {session.email}</p>
+                <p className="text-xs font-bold uppercase leading-tight tracking-wide">
+                  EMAIL: {session.email}
+                </p>
               ) : null}
               {session?.role === "BUSINESS" && session.tin ? (
-                <p className="text-xs font-bold uppercase leading-tight tracking-wide">TIN: {session.tin}</p>
+                <p className="text-xs font-bold uppercase leading-tight tracking-wide">
+                  TIN: {session.tin}
+                </p>
               ) : null}
               {session?.role === "BUSINESS" && session.vrn ? (
-                <p className="text-xs font-bold uppercase leading-tight tracking-wide">VRN: {session.vrn}</p>
+                <p className="text-xs font-bold uppercase leading-tight tracking-wide">
+                  VRN: {session.vrn}
+                </p>
               ) : null}
             </div>
             <p className="border-b border-black py-1 text-center text-lg font-extrabold tracking-widest text-black">
@@ -368,10 +397,18 @@ export function ReceiptDialog({
               <table className="mt-2 w-full table-fixed border-b border-black text-left text-sm text-black">
                 <thead>
                   <tr className="border-b border-black">
-                    <th className="w-[40%] py-1 font-bold">{t("receipt.description")}</th>
-                    <th className="w-[14%] py-1 text-right font-bold">{t("receipt.qty")}</th>
-                    <th className="w-[23%] py-1 pl-2 text-right font-bold">{t("receipt.rate")}</th>
-                    <th className="w-[23%] py-1 pl-2 text-right font-bold">{t("receipt.amount")}</th>
+                    <th className="w-[40%] py-1 font-bold">
+                      {t("receipt.description")}
+                    </th>
+                    <th className="w-[14%] py-1 text-right font-bold">
+                      {t("receipt.qty")}
+                    </th>
+                    <th className="w-[23%] py-1 pl-2 text-right font-bold">
+                      {t("receipt.rate")}
+                    </th>
+                    <th className="w-[23%] py-1 pl-2 text-right font-bold">
+                      {t("receipt.amount")}
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
@@ -382,13 +419,19 @@ export function ReceiptDialog({
                         {slipQty(li.quantity)}
                         {li.item.unit ? ` ${li.item.unit}` : ""}
                       </td>
-                      <td className="py-1 pl-2 text-right tabular-nums">{slipAmount(li.unitSellPrice)}</td>
-                      <td className="py-1 pl-2 text-right tabular-nums">{slipAmount(li.lineTotal)}</td>
+                      <td className="py-1 pl-2 text-right tabular-nums">
+                        {slipAmount(li.unitSellPrice)}
+                      </td>
+                      <td className="py-1 pl-2 text-right tabular-nums">
+                        {slipAmount(li.lineTotal)}
+                      </td>
                     </tr>
                   ))}
                   {(parseAmount(order.otherCharges ?? "0") ?? 0) > 0 ? (
                     <tr>
-                      <td className="py-1 pr-1 uppercase">{t("receipt.otherCharges")}</td>
+                      <td className="py-1 pr-1 uppercase">
+                        {t("receipt.otherCharges")}
+                      </td>
                       <td className="py-1 text-right tabular-nums">—</td>
                       <td className="py-1 pl-2 text-right tabular-nums">—</td>
                       <td className="py-1 pl-2 text-right tabular-nums">
@@ -404,7 +447,8 @@ export function ReceiptDialog({
                 <span>{t("receipt.total")}:</span>
                 <span>{slipAmount(order.totalAmount)}</span>
               </div>
-              {owedAmount(order.totalAmount, order.amountPaid, order.balance) > 0 ? (
+              {owedAmount(order.totalAmount, order.amountPaid, order.balance) >
+              0 ? (
                 <>
                   <div className="flex justify-end gap-8">
                     <span>{t("receipt.paid")}:</span>
@@ -414,7 +458,11 @@ export function ReceiptDialog({
                     <span>{t("receipt.debt")}:</span>
                     <span>
                       {slipAmount(
-                        owedAmount(order.totalAmount, order.amountPaid, order.balance),
+                        owedAmount(
+                          order.totalAmount,
+                          order.amountPaid,
+                          order.balance,
+                        ),
                       )}
                     </span>
                   </div>
@@ -423,7 +471,9 @@ export function ReceiptDialog({
             </div>
             <div className="mt-2 text-center text-sm font-bold text-black">
               <p>{thanks}</p>
-              <p className="mt-1 text-base font-extrabold uppercase">{businessTitle}</p>
+              <p className="mt-1 text-base font-extrabold uppercase">
+                {businessTitle}
+              </p>
             </div>
             <div className="mt-5 flex gap-2 print:hidden">
               <Button
@@ -436,10 +486,14 @@ export function ReceiptDialog({
                       order,
                       paperMm,
                       businessTitle,
-                      address: session?.role === "BUSINESS" ? session.address : null,
-                      poBox: session?.role === "BUSINESS" ? session.poBox : null,
-                      phone: session?.role === "BUSINESS" ? session.phone : null,
-                      email: session?.role === "BUSINESS" ? session.email : null,
+                      address:
+                        session?.role === "BUSINESS" ? session.address : null,
+                      poBox:
+                        session?.role === "BUSINESS" ? session.poBox : null,
+                      phone:
+                        session?.role === "BUSINESS" ? session.phone : null,
+                      email:
+                        session?.role === "BUSINESS" ? session.email : null,
                       tin: session?.role === "BUSINESS" ? session.tin : null,
                       vrn: session?.role === "BUSINESS" ? session.vrn : null,
                       t,
