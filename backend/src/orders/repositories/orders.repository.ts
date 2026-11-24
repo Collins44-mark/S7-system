@@ -140,6 +140,9 @@ export class OrdersRepository {
         });
       }
 
+      const otherCharges = new Prisma.Decimal(String(dto.otherCharges ?? 0));
+      total = total.add(otherCharges);
+
       const amountPaid = new Prisma.Decimal(String(dto.amountPaid));
       if (amountPaid.gt(total)) {
         throw new CheckoutError(
@@ -204,6 +207,7 @@ export class OrdersRepository {
           customerId: customer.id,
           orderNumber,
           receiptNumber,
+          otherCharges,
           totalAmount: total,
           amountPaid,
           balance,

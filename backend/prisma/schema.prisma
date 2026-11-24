@@ -167,6 +167,8 @@ model Order {
   orderNumber   String
   /** Sequential customer receipt id per business, e.g. RCT-000001 */
   receiptNumber String?
+  /** Optional non-inventory charge added during checkout (e.g. a service fee). */
+  otherCharges  Decimal       @default(0) @db.Decimal(14, 2)
   customerId    String
   customer      Customer      @relation(fields: [customerId], references: [id], onDelete: Restrict)
   businessId    String

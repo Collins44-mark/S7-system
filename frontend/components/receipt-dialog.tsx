@@ -90,12 +90,22 @@ function slipHtml(input: {
     amountLabel: input.t("receipt.amount"),
     lines: debt
       ? []
-      : input.order.orderItems.map((li) => ({
-          description: li.item.name,
-          qty: `${slipQty(li.quantity)}${li.item.unit ? ` ${li.item.unit}` : ""}`,
-          rate: slipAmount(li.unitSellPrice),
-          amount: slipAmount(li.lineTotal),
-        })),
+      : [
+          ...input.order.orderItems.map((li) => ({
+            description: li.item.name,
+            qty: `${slipQty(li.quantity)}${li.item.unit ? ` ${li.item.unit}` : ""}`,
+            rate: slipAmount(li.unitSellPrice),
+            amount: slipAmount(li.lineTotal),
+          })),
+          ...(Number(input.order.otherCharges ?? 0) > 0
+            ? [{
+                description: input.t("receipt.otherCharges"),
+                qty: "—",
+                rate: "—",
+                amount: slipAmount(input.order.otherCharges ?? "0"),
+              }]
+            : []),
+        ],
     totalLabel: input.t("receipt.total"),
     total: slipAmount(input.order.totalAmount),
     extras,
@@ -118,6 +128,7 @@ async function downloadReceiptPdf(input: {
   customerName: string;
   customerPhone: string;
   items: ReceiptOrder["orderItems"];
+  otherCharges?: string;
   kind?: "sale" | "debt";
   totalAmount: string;
   amountPaid: string;
@@ -128,6 +139,7 @@ async function downloadReceiptPdf(input: {
     paid: string;
     balance: string;
     debt: string;
+    otherCharges: string;
     method: string;
     thanks: string;
   };
@@ -137,7 +149,8 @@ async function downloadReceiptPdf(input: {
   const width = input.paperMm ?? 80;
   const line = 4.2;
   const debt = input.kind === "debt";
-  const itemLines = debt ? 0 : input.items.length;
+  const hasOtherCharges = !debt && (parseAmount(input.otherCharges ?? "0") ?? 0) > 0;
+  const itemLines = debt ? 0 : input.items.length + (hasOtherCharges ? 1 : 0);
   const height = 28 + itemLines * line + 36;
   const doc = new jsPDF({
     unit: "mm",
@@ -179,6 +192,11 @@ async function downloadReceiptPdf(input: {
       doc.text(money(li.lineTotal), right, y, { align: "right" });
       y += line;
     }
+    if (hasOtherCharges) {
+      doc.text(input.labels.otherCharges, left, y, { maxWidth: width - 22 });
+      doc.text(money(input.otherCharges ?? "0"), right, y, { align: "right" });
+      y += line;
+    }
     y += 1;
   }
   doc.line(left, y, right, y);
@@ -213,6 +231,7 @@ export type ReceiptOrder = {
   orderNumber: string;
   receiptNumber?: string | null;
   createdAt: string;
+  otherCharges?: string;
   totalAmount: string;
   amountPaid: string;
   balance: string;
@@ -367,6 +386,16 @@ export function ReceiptDialog({
                       <td className="py-1 pl-2 text-right tabular-nums">{slipAmount(li.lineTotal)}</td>
                     </tr>
                   ))}
+                  {(parseAmount(order.otherCharges ?? "0") ?? 0) > 0 ? (
+                    <tr>
+                      <td className="py-1 pr-1 uppercase">{t("receipt.otherCharges")}</td>
+                      <td className="py-1 text-right tabular-nums">—</td>
+                      <td className="py-1 pl-2 text-right tabular-nums">—</td>
+                      <td className="py-1 pl-2 text-right tabular-nums">
+                        {slipAmount(order.otherCharges ?? "0")}
+                      </td>
+                    </tr>
+                  ) : null}
                 </tbody>
               </table>
             )}
@@ -442,6 +471,7 @@ export function ReceiptDialog({
                     customerName: order.customer.name,
                     customerPhone: order.customer.phone ?? "",
                     items: debt ? [] : order.orderItems,
+                    otherCharges: order.otherCharges,
                     kind: debt ? "debt" : "sale",
                     totalAmount: order.totalAmount,
                     amountPaid: order.amountPaid,
@@ -452,6 +482,7 @@ export function ReceiptDialog({
                       paid: t("receipt.paid"),
                       balance: t("receipt.balance"),
                       debt: t("receipt.debt"),
+                      otherCharges: t("receipt.otherCharges"),
                       method: t("receipt.method"),
                       thanks,
                     },

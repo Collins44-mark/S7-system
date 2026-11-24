@@ -113,6 +113,7 @@ type OrderRow = {
   id: string;
   orderNumber: string;
   receiptNumber?: string | null;
+  otherCharges: string;
   totalAmount: string;
   amountPaid: string;
   balance: string;
@@ -483,6 +484,7 @@ export default function OrdersPage() {
                         orderNumber: o.orderNumber,
                         receiptNumber: o.receiptNumber,
                         createdAt: o.createdAt,
+                        otherCharges: o.otherCharges,
                         totalAmount: o.totalAmount,
                         amountPaid: o.amountPaid,
                         balance: o.balance,
@@ -583,6 +585,7 @@ export default function OrdersPage() {
             orderNumber: created.orderNumber,
             receiptNumber: created.receiptNumber,
             createdAt: created.createdAt,
+            otherCharges: created.otherCharges,
             totalAmount: created.totalAmount,
             amountPaid: created.amountPaid,
             balance: created.balance,
@@ -627,6 +630,7 @@ function CreateOrderDialog({
   const [search, setSearch] = useState("");
   const [payMethod, setPayMethod] = useState<string>("CASH");
   const [amountPaid, setAmountPaid] = useState("");
+  const [otherCharges, setOtherCharges] = useState("");
   const [wantPrintReceipt, setWantPrintReceipt] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -645,6 +649,7 @@ function CreateOrderDialog({
       setSearch("");
       setPayMethod("CASH");
       setAmountPaid("");
+      setOtherCharges("");
       setWantPrintReceipt(true);
       setError(null);
       void api
@@ -669,7 +674,7 @@ function CreateOrderDialog({
     [cartIds, items, lines],
   );
 
-  const total = useMemo(() => {
+  const itemsTotal = useMemo(() => {
     let t = 0;
     for (const [id, q] of Object.entries(lines)) {
       if (q <= 0) continue;
@@ -681,6 +686,8 @@ function CreateOrderDialog({
     }
     return t;
   }, [lines, items]);
+  const otherChargesNum = parseAmount(otherCharges) ?? 0;
+  const total = itemsTotal + Math.max(0, otherChargesNum);
 
   const selectedAccount = useMemo(
     () => accounts.find((c) => c.id === accountId) ?? null,
@@ -767,6 +774,11 @@ function CreateOrderDialog({
       setError(t("orders.amountPaidInvalid"));
       return;
     }
+    const charges = otherCharges.trim() === "" ? 0 : parseAmount(otherCharges);
+    if (charges == null || charges < 0) {
+      setError(t("orders.otherChargesInvalid"));
+      return;
+    }
     if (customerKind === "name" && paid + 0.001 < total && !custPhone.trim()) {
       setError(t("orders.phoneRequired"));
       return;
@@ -783,6 +795,7 @@ function CreateOrderDialog({
         items: orderItems,
         paymentMethod: customerKind === "account" ? "ACCOUNT" : payMethod,
         amountPaid: paid,
+        otherCharges: charges,
       });
       onCreated(data, { autoPrint: wantPrintReceipt });
     } catch (err: unknown) {
@@ -1020,6 +1033,18 @@ function CreateOrderDialog({
                     : t("customers.noAccount")}
                 </p>
               )}
+            </div>
+            <div>
+              <Label>{t("orders.otherCharges")}</Label>
+              <Input
+                type="number"
+                step="0.01"
+                min={0}
+                value={otherCharges}
+                onChange={(e) => setOtherCharges(e.target.value)}
+                placeholder="0.00"
+                className="mt-1 appearance-none rounded-xl [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+              />
             </div>
             <div>
               <Label>{t("orders.amountPaid")}</Label>

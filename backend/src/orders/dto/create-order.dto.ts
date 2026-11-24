@@ -63,4 +63,11 @@ export class CreateOrderDto {
   @IsNumber()
   @Min(0)
   amountPaid: number;
+
+  /** Optional service or other non-inventory charge included in the order total. */
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0)
+  otherCharges?: number;
 }
