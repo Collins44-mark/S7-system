@@ -34,6 +34,13 @@ export class UpdateOrderDto {
   @Min(0)
   otherCharges?: number;
 
+  /** Amount taken off the items and other charges before the customer pays. */
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0)
+  discount?: number;
+
   @Transform(({ value }) => {
     if (typeof value !== 'string') return value;
     const trimmed = value.trim();

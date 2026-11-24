@@ -7,9 +7,12 @@ export class CheckoutError extends Error {
       | 'AMOUNT_EXCEEDS_TOTAL'
       | 'INSUFFICIENT_ACCOUNT'
       | 'PHONE_REQUIRED'
+      | 'PHONE_IN_USE'
       | 'ORDER_CANCELLED'
       | 'DUPLICATE_ORDER_ITEM'
-      | 'AMOUNT_BELOW_RECORDED_PAYMENTS',
+      | 'AMOUNT_BELOW_RECORDED_PAYMENTS'
+      | 'DISCOUNT_INVALID'
+      | 'DISCOUNT_EXCEEDS_TOTAL',
     public readonly detail?: string,
   ) {
     super(message);

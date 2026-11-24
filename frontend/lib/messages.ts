@@ -160,6 +160,9 @@ const en: Record<string, string> = {
   "orders.otherCharges": "Other charges",
   "orders.otherChargesInvalid":
     "Other charges must be a valid non-negative amount.",
+  "orders.discount": "Discount",
+  "orders.discountInvalid": "Discount must be a valid non-negative amount.",
+  "orders.discountTooHigh": "Discount cannot be more than the order total.",
   "orders.paymentMethod": "Payment method",
   "orders.amountPaid": "Amount paid",
   "orders.balanceDue": "Balance due",
@@ -344,6 +347,7 @@ const en: Record<string, string> = {
   "receipt.rate": "Rate",
   "receipt.amount": "Amount",
   "receipt.otherCharges": "Other charges",
+  "receipt.discount": "Discount",
   "receipt.thanks": "Thank you for your purchase!",
   "receipt.debtNote":
     "Debt payment received. This receipt is not for collecting goods.",
@@ -513,6 +517,9 @@ const sw: Record<string, string> = {
   "orders.otherCharges": "Gharama nyingine",
   "orders.otherChargesInvalid":
     "Gharama nyingine lazima iwe kiasi halali kisicho hasi.",
+  "orders.discount": "Punguzo",
+  "orders.discountInvalid": "Punguzo lazima liwe kiasi halali kisicho hasi.",
+  "orders.discountTooHigh": "Punguzo haliwezi kuzidi jumla ya agizo.",
   "orders.paymentMethod": "Njia ya malipo",
   "orders.amountPaid": "Kiasi kilicholipwa",
   "orders.balanceDue": "Salio la deni",
@@ -696,6 +703,7 @@ const sw: Record<string, string> = {
   "receipt.rate": "Bei",
   "receipt.amount": "Kiasi",
   "receipt.otherCharges": "Gharama nyingine",
+  "receipt.discount": "Punguzo",
   "receipt.thanks": "Asante kwa ununuzi wako!",
   "receipt.debtNote":
     "Malipo ya deni yamepokelewa. Risiti hii si ya kuchukua bidhaa.",

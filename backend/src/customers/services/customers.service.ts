@@ -48,6 +48,7 @@ export class CustomersService {
     return rows.map((order) => ({
       ...order,
       otherCharges: order.otherCharges.toString(),
+      discount: order.discount.toString(),
       totalAmount: order.totalAmount.toString(),
       amountPaid: order.amountPaid.toString(),
       balance: order.balance.toString(),

@@ -70,4 +70,11 @@ export class CreateOrderDto {
   @IsNumber()
   @Min(0)
   otherCharges?: number;
+
+  /** Amount taken off the items and other charges before the customer pays. */
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0)
+  discount?: number;
 }

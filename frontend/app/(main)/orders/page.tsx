@@ -155,6 +155,7 @@ type OrderRow = {
   orderNumber: string;
   receiptNumber?: string | null;
   otherCharges: string;
+  discount?: string;
   totalAmount: string;
   amountPaid: string;
   balance: string;
@@ -576,6 +577,7 @@ export default function OrdersPage() {
                           receiptNumber: o.receiptNumber,
                           createdAt: o.createdAt,
                           otherCharges: o.otherCharges,
+                          discount: o.discount,
                           totalAmount: o.totalAmount,
                           amountPaid: o.amountPaid,
                           balance: o.balance,
@@ -684,6 +686,7 @@ export default function OrdersPage() {
             receiptNumber: created.receiptNumber,
             createdAt: created.createdAt,
             otherCharges: created.otherCharges,
+            discount: created.discount,
             totalAmount: created.totalAmount,
             amountPaid: created.amountPaid,
             balance: created.balance,
@@ -707,6 +710,7 @@ export default function OrdersPage() {
             receiptNumber: updated.receiptNumber,
             createdAt: updated.createdAt,
             otherCharges: updated.otherCharges,
+            discount: updated.discount,
             totalAmount: updated.totalAmount,
             amountPaid: updated.amountPaid,
             balance: updated.balance,
@@ -753,6 +757,7 @@ function CreateOrderDialog({
   const [payMethod, setPayMethod] = useState<string>("CASH");
   const [amountPaid, setAmountPaid] = useState("");
   const [otherCharges, setOtherCharges] = useState("");
+  const [discount, setDiscount] = useState("");
   const [wantPrintReceipt, setWantPrintReceipt] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -773,6 +778,7 @@ function CreateOrderDialog({
       setPayMethod("CASH");
       setAmountPaid("");
       setOtherCharges("");
+      setDiscount("");
       setWantPrintReceipt(true);
       setError(null);
       void api
@@ -809,8 +815,10 @@ function CreateOrderDialog({
     }
     return t;
   }, [lines, items]);
-  const otherChargesNum = parseAmount(otherCharges) ?? 0;
-  const total = itemsTotal + Math.max(0, otherChargesNum);
+  const otherChargesNum = Math.max(0, parseAmount(otherCharges) ?? 0);
+  const gross = itemsTotal + otherChargesNum;
+  const discountNum = Math.max(0, parseAmount(discount) ?? 0);
+  const total = Math.max(0, gross - discountNum);
 
   const selectedAccount = useMemo(
     () => accounts.find((c) => c.id === accountId) ?? null,
@@ -831,8 +839,10 @@ function CreateOrderDialog({
       setAmountPaid(cap > 0 ? formatAmountInput(cap) : "");
       return;
     }
-    setAmountPaid(total > 0 ? formatAmountInput(total) : "");
-  }, [open, total, payMethod, accountBalance]);
+    setAmountPaid(
+      total > 0 ? formatAmountInput(total) : gross > 0 ? "0" : "",
+    );
+  }, [open, total, gross, payMethod, accountBalance]);
 
   function rememberInCart(id: string) {
     setCartIds((prev) => (prev.includes(id) ? prev : [...prev, id]));
@@ -927,7 +937,22 @@ function CreateOrderDialog({
       setError(t("orders.otherChargesInvalid"));
       return;
     }
-    if (customerKind === "name" && paid + 0.001 < total && !custPhone.trim()) {
+    const discountAmount = discount.trim() === "" ? 0 : parseAmount(discount);
+    if (discountAmount == null || discountAmount < 0) {
+      setError(t("orders.discountInvalid"));
+      return;
+    }
+    const payable = itemsTotal + charges;
+    if (discountAmount > payable + 0.001) {
+      setError(t("orders.discountTooHigh"));
+      return;
+    }
+    const nextTotal = payable - discountAmount;
+    if (
+      customerKind === "name" &&
+      paid + 0.001 < nextTotal &&
+      !custPhone.trim()
+    ) {
       setError(t("orders.phoneRequired"));
       return;
     }
@@ -944,6 +969,7 @@ function CreateOrderDialog({
         paymentMethod: customerKind === "account" ? "ACCOUNT" : payMethod,
         amountPaid: paid,
         otherCharges: charges,
+        discount: discountAmount,
       });
       onCreated(data, { autoPrint: wantPrintReceipt });
     } catch (err: unknown) {
@@ -1200,6 +1226,18 @@ function CreateOrderDialog({
               />
             </div>
             <div>
+              <Label>{t("orders.discount")}</Label>
+              <Input
+                type="number"
+                step="0.01"
+                min={0}
+                value={discount}
+                onChange={(e) => setDiscount(e.target.value)}
+                placeholder="0.00"
+                className="mt-1 appearance-none rounded-xl [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+              />
+            </div>
+            <div>
               <Label>{t("orders.amountPaid")}</Label>
               <Input
                 type="number"
@@ -1212,6 +1250,16 @@ function CreateOrderDialog({
               />
             </div>
           </div>
+          {discountNum > 0 ? (
+            <div className="flex items-center justify-between rounded-xl bg-slate-50 px-3 py-2">
+              <span className="text-sm text-slate-600">
+                {t("orders.discount")}
+              </span>
+              <span className="font-medium text-slate-700">
+                -{money(Math.min(discountNum, gross))}
+              </span>
+            </div>
+          ) : null}
           <div className="flex items-center justify-between rounded-xl bg-blue-50 p-3">
             <span className="text-sm text-slate-600">
               {t("orders.totalLabel")}
@@ -1267,6 +1315,7 @@ function EditOrderDialog({
   const [search, setSearch] = useState("");
   const [amountPaid, setAmountPaid] = useState("");
   const [otherChargesInput, setOtherChargesInput] = useState("");
+  const [discountInput, setDiscountInput] = useState("");
   const [customerName, setCustomerName] = useState("");
   const [phone, setPhone] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -1302,6 +1351,7 @@ function EditOrderDialog({
     setOtherChargesInput(
       formatAmountInput(parseAmount(order.otherCharges) ?? 0),
     );
+    setDiscountInput(formatAmountInput(parseAmount(order.discount) ?? 0));
     setCustomerName(order.customer.name);
     setPhone(order.customer.phone ?? "");
     setError(null);
@@ -1412,7 +1462,9 @@ function EditOrderDialog({
     [items, lines, originalLinesById],
   );
   const otherCharges = Math.max(0, parseAmount(otherChargesInput) ?? 0);
-  const total = itemsTotal + otherCharges;
+  const gross = itemsTotal + otherCharges;
+  const discountAmount = Math.max(0, parseAmount(discountInput) ?? 0);
+  const total = Math.max(0, gross - discountAmount);
   const paid = parseAmount(amountPaid) ?? 0;
   const balance = Math.max(0, total - paid);
 
@@ -1438,7 +1490,18 @@ function EditOrderDialog({
       setError(t("orders.otherChargesInvalid"));
       return;
     }
-    const nextTotal = itemsTotal + charges;
+    const discountValue =
+      discountInput.trim() === "" ? 0 : parseAmount(discountInput);
+    if (discountValue == null || discountValue < 0) {
+      setError(t("orders.discountInvalid"));
+      return;
+    }
+    const payable = itemsTotal + charges;
+    if (discountValue > payable + 0.001) {
+      setError(t("orders.discountTooHigh"));
+      return;
+    }
+    const nextTotal = payable - discountValue;
     if (!customerName.trim()) {
       setError(t("orders.name"));
       return;
@@ -1453,6 +1516,7 @@ function EditOrderDialog({
         items: orderItems,
         amountPaid: paidAmount,
         otherCharges: charges,
+        discount: discountValue,
         customerName: customerName.trim(),
         ...(phone.trim() ? { customerPhone: phone.trim() } : {}),
       });
@@ -1623,6 +1687,23 @@ function EditOrderDialog({
                   className="mt-1 bg-white"
                 />
               </div>
+              <div>
+                <Label className="text-slate-600">{t("orders.discount")}</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  min={0}
+                  value={discountInput}
+                  onChange={(e) => setDiscountInput(e.target.value)}
+                  className="mt-1 bg-white"
+                />
+              </div>
+              {discountAmount > 0 ? (
+                <div className="flex justify-between text-slate-600">
+                  <span>{t("orders.discount")}</span>
+                  <span>-{money(Math.min(discountAmount, gross))}</span>
+                </div>
+              ) : null}
               <div className="flex justify-between font-bold text-blue-700">
                 <span>{t("orders.totalLabel")}</span>
                 <span>{money(total)}</span>

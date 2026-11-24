@@ -10,6 +10,23 @@ import { CheckoutError } from '../../core/errors/checkout.errors';
 import type { CreateOrderDto } from '../dto/create-order.dto';
 import type { UpdateOrderDto } from '../dto/update-order.dto';
 
+function pricedTotal(subtotal: Prisma.Decimal, discountRaw: unknown) {
+  const discount = new Prisma.Decimal(String(discountRaw ?? 0));
+  if (discount.lt(0)) {
+    throw new CheckoutError(
+      'Discount cannot be negative',
+      'DISCOUNT_INVALID',
+    );
+  }
+  if (discount.gt(subtotal)) {
+    throw new CheckoutError(
+      'Discount cannot be more than the order total',
+      'DISCOUNT_EXCEEDS_TOTAL',
+    );
+  }
+  return { discount, total: subtotal.sub(discount) };
+}
+
 @Injectable()
 export class OrdersRepository {
   constructor(private readonly prisma: PrismaService) {}
@@ -143,6 +160,9 @@ export class OrdersRepository {
 
       const otherCharges = new Prisma.Decimal(String(dto.otherCharges ?? 0));
       total = total.add(otherCharges);
+      const priced = pricedTotal(total, dto.discount ?? 0);
+      const discount = priced.discount;
+      total = priced.total;
 
       const amountPaid = new Prisma.Decimal(String(dto.amountPaid));
       if (amountPaid.gt(total)) {
@@ -209,6 +229,7 @@ export class OrdersRepository {
           orderNumber,
           receiptNumber,
           otherCharges,
+          discount,
           totalAmount: total,
           amountPaid,
           balance,
@@ -386,7 +407,12 @@ export class OrdersRepository {
         dto.otherCharges == null
           ? order.otherCharges
           : new Prisma.Decimal(String(dto.otherCharges));
-      const total = itemsTotal.add(otherCharges);
+      const priced = pricedTotal(
+        itemsTotal.add(otherCharges),
+        dto.discount == null ? order.discount : dto.discount,
+      );
+      const discount = priced.discount;
+      const total = priced.total;
       const checkoutPayment =
         order.payments.find((payment) => payment.note === 'Order checkout') ??
         order.payments[0];
@@ -523,6 +549,7 @@ export class OrdersRepository {
           amountPaid,
           balance,
           otherCharges,
+          discount,
           status,
           orderItems: {
             deleteMany: {},

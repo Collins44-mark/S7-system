@@ -169,6 +169,8 @@ model Order {
   receiptNumber String?
   /** Optional non-inventory charge added during checkout (e.g. a service fee). */
   otherCharges  Decimal       @default(0) @db.Decimal(14, 2)
+  /** Amount taken off the order total at checkout. */
+  discount      Decimal       @default(0) @db.Decimal(14, 2)
   customerId    String
   customer      Customer      @relation(fields: [customerId], references: [id], onDelete: Restrict)
   businessId    String

@@ -110,6 +110,16 @@ function slipHtml(input: {
                 },
               ]
             : []),
+          ...((parseAmount(input.order.discount ?? "0") ?? 0) > 0
+            ? [
+                {
+                  description: input.t("receipt.discount"),
+                  qty: "—",
+                  rate: "—",
+                  amount: `-${slipAmount(input.order.discount ?? "0")}`,
+                },
+              ]
+            : []),
         ],
     totalLabel: input.t("receipt.total"),
     total: slipAmount(input.order.totalAmount),
@@ -134,6 +144,7 @@ async function downloadReceiptPdf(input: {
   customerPhone: string;
   items: ReceiptOrder["orderItems"];
   otherCharges?: string;
+  discount?: string;
   kind?: "sale" | "debt";
   totalAmount: string;
   amountPaid: string;
@@ -145,6 +156,7 @@ async function downloadReceiptPdf(input: {
     balance: string;
     debt: string;
     otherCharges: string;
+    discount: string;
     method: string;
     thanks: string;
   };
@@ -156,7 +168,10 @@ async function downloadReceiptPdf(input: {
   const debt = input.kind === "debt";
   const hasOtherCharges =
     !debt && (parseAmount(input.otherCharges ?? "0") ?? 0) > 0;
-  const itemLines = debt ? 0 : input.items.length + (hasOtherCharges ? 1 : 0);
+  const hasDiscount =
+    !debt && (parseAmount(input.discount ?? "0") ?? 0) > 0;
+  const itemLines =
+    debt ? 0 : input.items.length + (hasOtherCharges ? 1 : 0) + (hasDiscount ? 1 : 0);
   const height = 28 + itemLines * line + 36;
   const doc = new jsPDF({
     unit: "mm",
@@ -203,6 +218,11 @@ async function downloadReceiptPdf(input: {
       doc.text(money(input.otherCharges ?? "0"), right, y, { align: "right" });
       y += line;
     }
+    if (hasDiscount) {
+      doc.text(input.labels.discount, left, y, { maxWidth: width - 22 });
+      doc.text(`-${money(input.discount ?? "0")}`, right, y, { align: "right" });
+      y += line;
+    }
     y += 1;
   }
   doc.line(left, y, right, y);
@@ -238,6 +258,7 @@ export type ReceiptOrder = {
   receiptNumber?: string | null;
   createdAt: string;
   otherCharges?: string;
+  discount?: string;
   totalAmount: string;
   amountPaid: string;
   balance: string;
@@ -439,6 +460,18 @@ export function ReceiptDialog({
                       </td>
                     </tr>
                   ) : null}
+                  {(parseAmount(order.discount ?? "0") ?? 0) > 0 ? (
+                    <tr>
+                      <td className="py-1 pr-1 uppercase">
+                        {t("receipt.discount")}
+                      </td>
+                      <td className="py-1 text-right tabular-nums">—</td>
+                      <td className="py-1 pl-2 text-right tabular-nums">—</td>
+                      <td className="py-1 pl-2 text-right tabular-nums">
+                        -{slipAmount(order.discount ?? "0")}
+                      </td>
+                    </tr>
+                  ) : null}
                 </tbody>
               </table>
             )}
@@ -526,6 +559,7 @@ export function ReceiptDialog({
                     customerPhone: order.customer.phone ?? "",
                     items: debt ? [] : order.orderItems,
                     otherCharges: order.otherCharges,
+                    discount: order.discount,
                     kind: debt ? "debt" : "sale",
                     totalAmount: order.totalAmount,
                     amountPaid: order.amountPaid,
@@ -537,6 +571,7 @@ export function ReceiptDialog({
                       balance: t("receipt.balance"),
                       debt: t("receipt.debt"),
                       otherCharges: t("receipt.otherCharges"),
+                      discount: t("receipt.discount"),
                       method: t("receipt.method"),
                       thanks,
                     },

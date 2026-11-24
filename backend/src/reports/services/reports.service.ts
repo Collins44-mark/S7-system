@@ -30,6 +30,10 @@ export class ReportsService {
     }
 
     const profitAgg = await this.reports.aggregateProfitAllTime(businessPk);
+    const discountAgg = await this.reports.aggregateDiscount({
+      businessId: businessPk,
+      status: { not: OrderStatus.CANCELLED },
+    });
     const expenseAgg = await this.reports.aggregateExpensesAllTime(businessPk);
 
     const today = this.reports.rangeForPeriod('daily');
@@ -48,7 +52,11 @@ export class ReportsService {
       totalItemSkus: items.length,
       totalUnitsInStock: totalUnits,
       stockValue: stockValue.toString(),
-      totalProfitAllTime: profitAgg._sum.lineProfit?.toString() ?? '0',
+      totalProfitAllTime: new Prisma.Decimal(
+        profitAgg._sum.lineProfit?.toString() ?? '0',
+      )
+        .sub(new Prisma.Decimal(discountAgg._sum.discount?.toString() ?? '0'))
+        .toString(),
       expensesTotal: expenseAgg._sum.amount?.toString() ?? '0',
       lowStockCount,
       recentOrders,
@@ -80,6 +88,7 @@ export class ReportsService {
     };
 
     const salesSum = await this.reports.aggregateSales(orderWhere);
+    const discountAgg = await this.reports.aggregateDiscount(orderWhere);
 
     const itemAgg = await this.reports.aggregateOrderItemsForOrders(
       orderWhere,
@@ -98,7 +107,9 @@ export class ReportsService {
       start: start.toISOString(),
       end: end.toISOString(),
       totalSales: salesSum._sum.totalAmount?.toString() ?? '0',
-      totalProfit: lineProfit.toString(),
+      totalProfit: lineProfit
+        .sub(new Prisma.Decimal(discountAgg._sum.discount?.toString() ?? '0'))
+        .toString(),
       costOfGoodsSold: costOfGoodsSold.toString(),
       itemsSold: itemAgg._sum.quantity?.toString() ?? '0',
     };
@@ -134,7 +145,9 @@ export class ReportsService {
       };
       cur.sales = cur.sales.add(new Prisma.Decimal(o.totalAmount.toString()));
       cur.profit = cur.profit.add(
-        profitByOrder.get(o.id) ?? new Prisma.Decimal(0),
+        (profitByOrder.get(o.id) ?? new Prisma.Decimal(0)).sub(
+          new Prisma.Decimal(o.discount.toString()),
+        ),
       );
       bucket.set(key, cur);
     }

@@ -39,6 +39,13 @@ export class ReportsRepository {
     });
   }
 
+  aggregateDiscount(orderWhere: Prisma.OrderWhereInput) {
+    return this.prisma.order.aggregate({
+      where: orderWhere,
+      _sum: { discount: true },
+    });
+  }
+
   aggregateProfitAllTime(businessId: string) {
     return this.prisma.orderItem.aggregate({
       where: {
@@ -88,7 +95,7 @@ export class ReportsRepository {
         status: { not: OrderStatus.CANCELLED },
         createdAt: { gte: start, lte: end },
       },
-      select: { id: true, createdAt: true, totalAmount: true },
+      select: { id: true, createdAt: true, totalAmount: true, discount: true },
     });
   }
 
