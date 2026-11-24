@@ -3,10 +3,13 @@ import {
   IsArray,
   IsNumber,
   IsOptional,
+  IsString,
+  MaxLength,
   Min,
+  MinLength,
   ValidateNested,
 } from 'class-validator';
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import { OrderLineDto } from './create-order.dto';
 
 /** Items on a confirmed order can be corrected without changing its recorded payment. */
@@ -23,4 +26,32 @@ export class UpdateOrderDto {
   @IsNumber()
   @Min(0)
   amountPaid?: number;
+
+  /** Optional service or other non-inventory charge included in the order total. */
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0)
+  otherCharges?: number;
+
+  @Transform(({ value }) => {
+    if (typeof value !== 'string') return value;
+    const trimmed = value.trim();
+    return trimmed.length > 0 ? trimmed : undefined;
+  })
+  @IsOptional()
+  @IsString()
+  @MinLength(1)
+  @MaxLength(120)
+  customerName?: string;
+
+  @Transform(({ value }) => {
+    if (typeof value !== 'string') return value;
+    const trimmed = value.trim();
+    return trimmed.length > 0 ? trimmed : undefined;
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(40)
+  customerPhone?: string;
 }

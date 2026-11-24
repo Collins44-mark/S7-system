@@ -1207,6 +1207,9 @@ function EditOrderDialog({
   const [cartIds, setCartIds] = useState<string[]>([]);
   const [search, setSearch] = useState("");
   const [amountPaid, setAmountPaid] = useState("");
+  const [otherChargesInput, setOtherChargesInput] = useState("");
+  const [customerName, setCustomerName] = useState("");
+  const [phone, setPhone] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -1236,6 +1239,11 @@ function EditOrderDialog({
     setCartIds(nextIds);
     setSearch("");
     setAmountPaid(formatAmountInput(parseAmount(order.amountPaid) ?? 0));
+    setOtherChargesInput(
+      formatAmountInput(parseAmount(order.otherCharges) ?? 0),
+    );
+    setCustomerName(order.customer.name);
+    setPhone(order.customer.phone ?? "");
     setError(null);
   }, [items, order]);
 
@@ -1321,7 +1329,7 @@ function EditOrderDialog({
       }, 0),
     [items, lines, originalLinesById],
   );
-  const otherCharges = parseAmount(order?.otherCharges) ?? 0;
+  const otherCharges = Math.max(0, parseAmount(otherChargesInput) ?? 0);
   const total = itemsTotal + otherCharges;
   const paid = parseAmount(amountPaid) ?? 0;
   const balance = Math.max(0, total - paid);
@@ -1342,11 +1350,29 @@ function EditOrderDialog({
       setError(t("orders.amountPaidInvalid"));
       return;
     }
+    const charges =
+      otherChargesInput.trim() === "" ? 0 : parseAmount(otherChargesInput);
+    if (charges == null || charges < 0) {
+      setError(t("orders.otherChargesInvalid"));
+      return;
+    }
+    const nextTotal = itemsTotal + charges;
+    if (!customerName.trim()) {
+      setError(t("orders.name"));
+      return;
+    }
+    if (paidAmount + 0.001 < nextTotal && !phone.trim()) {
+      setError(t("orders.phoneRequired"));
+      return;
+    }
     setSubmitting(true);
     try {
       const { data } = await api.patch<OrderRow>(`/orders/${order.id}`, {
         items: orderItems,
         amountPaid: paidAmount,
+        otherCharges: charges,
+        customerName: customerName.trim(),
+        ...(phone.trim() ? { customerPhone: phone.trim() } : {}),
       });
       await onUpdated(data);
     } catch (err: unknown) {
@@ -1381,11 +1407,31 @@ function EditOrderDialog({
                 {error}
               </p>
             ) : null}
-            <div className="rounded-xl bg-slate-50 p-3 text-sm text-slate-700">
-              <p className="font-medium text-slate-900">
-                {order.customer.name}
-              </p>
-              <p>{t("orders.editOrderHint")}</p>
+            <div className="space-y-3 rounded-xl bg-slate-50 p-3 text-sm text-slate-700">
+              <div className="flex items-center gap-3">
+                <Label htmlFor="edit-order-name" className="w-16 shrink-0">
+                  {t("orders.name")}
+                </Label>
+                <Input
+                  id="edit-order-name"
+                  value={customerName}
+                  onChange={(e) => setCustomerName(e.target.value)}
+                  required
+                  className="rounded-xl bg-white"
+                />
+              </div>
+              <div className="flex items-center gap-3">
+                <Label htmlFor="edit-order-phone" className="w-16 shrink-0">
+                  {t("orders.phone")}
+                </Label>
+                <Input
+                  id="edit-order-phone"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  required={balance > 0}
+                  className="rounded-xl bg-white"
+                />
+              </div>
             </div>
             <Input
               placeholder={t("orders.searchItems")}
@@ -1483,12 +1529,19 @@ function EditOrderDialog({
               })}
             </div>
             <div className="space-y-2 rounded-xl bg-blue-50 p-3 text-sm">
-              {otherCharges > 0 ? (
-                <div className="flex justify-between text-slate-600">
-                  <span>{t("orders.otherCharges")}</span>
-                  <span>{money(otherCharges)}</span>
-                </div>
-              ) : null}
+              <div>
+                <Label className="text-slate-600">
+                  {t("orders.otherCharges")}
+                </Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  min={0}
+                  value={otherChargesInput}
+                  onChange={(e) => setOtherChargesInput(e.target.value)}
+                  className="mt-1 bg-white"
+                />
+              </div>
               <div className="flex justify-between font-bold text-blue-700">
                 <span>{t("orders.totalLabel")}</span>
                 <span>{money(total)}</span>

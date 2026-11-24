@@ -382,7 +382,11 @@ export class OrdersRepository {
         });
       }
 
-      const total = itemsTotal.add(order.otherCharges);
+      const otherCharges =
+        dto.otherCharges == null
+          ? order.otherCharges
+          : new Prisma.Decimal(String(dto.otherCharges));
+      const total = itemsTotal.add(otherCharges);
       const checkoutPayment =
         order.payments.find((payment) => payment.note === 'Order checkout') ??
         order.payments[0];
@@ -416,11 +420,33 @@ export class OrdersRepository {
       }
 
       const balance = total.sub(amountPaid);
-      if (balance.gt(0) && !order.customer.phone) {
+      const phone =
+        dto.customerPhone === undefined
+          ? order.customer.phone
+          : dto.customerPhone.trim() || null;
+      const name = dto.customerName?.trim() || order.customer.name;
+      if (balance.gt(0) && !phone) {
         throw new CheckoutError(
           'A phone number is required when the updated order has a balance',
           'PHONE_REQUIRED',
         );
+      }
+      if (name !== order.customer.name || phone !== order.customer.phone) {
+        if (phone && phone !== order.customer.phone) {
+          const taken = await tx.customer.findUnique({
+            where: { businessId_phone: { businessId, phone } },
+          });
+          if (taken && taken.id !== order.customerId) {
+            throw new CheckoutError(
+              'This phone number is already used by another customer',
+              'PHONE_IN_USE',
+            );
+          }
+        }
+        await tx.customer.update({
+          where: { id: order.customerId },
+          data: { name, phone },
+        });
       }
 
       const updatedCheckoutAmount = amountPaid.sub(laterPayments);
@@ -496,6 +522,7 @@ export class OrdersRepository {
           totalAmount: total,
           amountPaid,
           balance,
+          otherCharges,
           status,
           orderItems: {
             deleteMany: {},
