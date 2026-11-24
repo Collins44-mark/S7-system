@@ -44,6 +44,41 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { MoreVertical, Plus, ShoppingCart } from "lucide-react";
 
+const QTY_STEP = 0.5;
+
+function roundQty(value: number) {
+  return Math.round(value * 1000) / 1000;
+}
+
+/** Keep partial entries such as "" and "0." so the line is not removed mid-typing. */
+function qtyDraftFromRaw(raw: string) {
+  const cleaned = raw.replace(/,/g, ".");
+  if (cleaned === "" || /^\d*\.?\d{0,3}$/.test(cleaned)) return cleaned;
+  return null;
+}
+
+function qtyFromDraft(raw: string, maximum: number) {
+  const parsed = parseFloat(raw.replace(",", "."));
+  if (!Number.isFinite(parsed) || parsed <= 0) return 0;
+  return roundQty(Math.min(maximum, parsed));
+}
+
+function formatQty(value: number) {
+  if (!Number.isFinite(value) || value <= 0) return "";
+  return String(roundQty(value));
+}
+
+function steppedQty(
+  draft: string | undefined,
+  current: number,
+  delta: number,
+  maximum: number,
+) {
+  const parsed = draft == null ? current : parseFloat(draft);
+  const base = Number.isFinite(parsed) ? parsed : current;
+  return roundQty(Math.max(0, Math.min(maximum, base + delta)));
+}
+
 const PAYMENT_CODES = [
   "CASH",
   "MPESA",
@@ -712,6 +747,7 @@ function CreateOrderDialog({
   const [custName, setCustName] = useState("");
   const [custPhone, setCustPhone] = useState("");
   const [lines, setLines] = useState<Record<string, number>>({});
+  const [qtyDraft, setQtyDraft] = useState<Record<string, string>>({});
   const [cartIds, setCartIds] = useState<string[]>([]);
   const [search, setSearch] = useState("");
   const [payMethod, setPayMethod] = useState<string>("CASH");
@@ -731,6 +767,7 @@ function CreateOrderDialog({
       setCustName("");
       setCustPhone("");
       setLines({});
+      setQtyDraft({});
       setCartIds([]);
       setSearch("");
       setPayMethod("CASH");
@@ -756,10 +793,8 @@ function CreateOrderDialog({
     () =>
       cartIds
         .map((id) => items.find((item) => item.id === id))
-        .filter(
-          (item): item is ItemRow => item != null && (lines[item.id] ?? 0) > 0,
-        ),
-    [cartIds, items, lines],
+        .filter((item): item is ItemRow => item != null),
+    [cartIds, items],
   );
 
   const itemsTotal = useMemo(() => {
@@ -808,18 +843,30 @@ function CreateOrderDialog({
     setSearch("");
   }
 
+  function forgetQtyDraft(id: string) {
+    setQtyDraft((prev) => {
+      if (!(id in prev)) return prev;
+      const copy = { ...prev };
+      delete copy[id];
+      return copy;
+    });
+  }
+
   function setQty(id: string, delta: number) {
     const it = items.find((i) => i.id === id);
     if (!it) return;
     const stock = parseAmount(it.quantity) ?? 0;
+    const next = steppedQty(qtyDraft[id], lines[id] ?? 0, delta, stock);
+    forgetQtyDraft(id);
+    if (next > 0) {
+      rememberInCart(id);
+      setLines((prev) => ({ ...prev, [id]: next }));
+      return;
+    }
+    setCartIds((ids) => ids.filter((itemId) => itemId !== id));
     setLines((prev) => {
-      const cur = prev[id] ?? 0;
-      const next = Math.max(0, Math.min(stock, cur + delta));
-      if (next > 0) rememberInCart(id);
-      else setCartIds((ids) => ids.filter((itemId) => itemId !== id));
       const copy = { ...prev };
-      if (next === 0) delete copy[id];
-      else copy[id] = next;
+      delete copy[id];
       return copy;
     });
   }
@@ -827,15 +874,28 @@ function CreateOrderDialog({
   function setQtyValue(id: string, raw: string) {
     const it = items.find((i) => i.id === id);
     if (!it) return;
+    const draft = qtyDraftFromRaw(raw);
+    if (draft == null) return;
     const stock = parseAmount(it.quantity) ?? 0;
-    const v = parseFloat(String(raw).replace(",", "."));
-    const next = Number.isFinite(v) ? Math.max(0, Math.min(stock, v)) : 0;
-    if (next > 0) rememberInCart(id);
-    else setCartIds((ids) => ids.filter((itemId) => itemId !== id));
+    rememberInCart(id);
+    setQtyDraft((prev) => ({ ...prev, [id]: draft }));
+    setLines((prev) => ({ ...prev, [id]: qtyFromDraft(draft, stock) }));
+  }
+
+  function commitQty(id: string) {
+    const it = items.find((i) => i.id === id);
+    if (!it || !(id in qtyDraft)) return;
+    const stock = parseAmount(it.quantity) ?? 0;
+    const next = qtyFromDraft(qtyDraft[id], stock);
+    forgetQtyDraft(id);
+    if (next > 0) {
+      setLines((prev) => ({ ...prev, [id]: next }));
+      return;
+    }
+    setCartIds((ids) => ids.filter((itemId) => itemId !== id));
     setLines((prev) => {
       const copy = { ...prev };
-      if (next === 0) delete copy[id];
-      else copy[id] = next;
+      delete copy[id];
       return copy;
     });
   }
@@ -1046,7 +1106,6 @@ function CreateOrderDialog({
             ) : (
               cartItems.map((it) => {
                 const q = lines[it.id] ?? 0;
-                const stock = parseAmount(it.quantity) ?? 0;
                 return (
                   <div
                     key={it.id}
@@ -1067,17 +1126,16 @@ function CreateOrderDialog({
                         size="icon"
                         variant="secondary"
                         className="h-7 w-7"
-                        onClick={() => setQty(it.id, -1)}
+                        onClick={() => setQty(it.id, -QTY_STEP)}
                       >
                         −
                       </Button>
                       <Input
-                        type="number"
-                        step="any"
-                        min={0}
-                        max={stock}
-                        value={q === 0 ? "" : String(q)}
+                        type="text"
+                        inputMode="decimal"
+                        value={qtyDraft[it.id] ?? formatQty(q)}
                         onChange={(e) => setQtyValue(it.id, e.target.value)}
+                        onBlur={() => commitQty(it.id)}
                         className="h-8 w-20 rounded-lg text-center"
                         aria-label="Quantity"
                       />
@@ -1085,7 +1143,7 @@ function CreateOrderDialog({
                         type="button"
                         size="icon"
                         className="h-7 w-7 bg-blue-100 text-blue-700 hover:bg-blue-200"
-                        onClick={() => setQty(it.id, 1)}
+                        onClick={() => setQty(it.id, QTY_STEP)}
                       >
                         +
                       </Button>
@@ -1204,6 +1262,7 @@ function EditOrderDialog({
   t: (key: string, vars?: Record<string, string | number>) => string;
 }) {
   const [lines, setLines] = useState<Record<string, number>>({});
+  const [qtyDraft, setQtyDraft] = useState<Record<string, string>>({});
   const [cartIds, setCartIds] = useState<string[]>([]);
   const [search, setSearch] = useState("");
   const [amountPaid, setAmountPaid] = useState("");
@@ -1236,6 +1295,7 @@ function EditOrderDialog({
       }
     }
     setLines(nextLines);
+    setQtyDraft({});
     setCartIds(nextIds);
     setSearch("");
     setAmountPaid(formatAmountInput(parseAmount(order.amountPaid) ?? 0));
@@ -1258,10 +1318,8 @@ function EditOrderDialog({
     () =>
       cartIds
         .map((id) => items.find((item) => item.id === id))
-        .filter(
-          (item): item is ItemRow => item != null && (lines[item.id] ?? 0) > 0,
-        ),
-    [cartIds, items, lines],
+        .filter((item): item is ItemRow => item != null),
+    [cartIds, items],
   );
 
   function originalQuantity(id: string) {
@@ -1278,23 +1336,34 @@ function EditOrderDialog({
     );
   }
 
+  function forgetQtyDraft(id: string) {
+    setQtyDraft((prev) => {
+      if (!(id in prev)) return prev;
+      const copy = { ...prev };
+      delete copy[id];
+      return copy;
+    });
+  }
+
   function setQty(id: string, delta: number) {
     const item = items.find((candidate) => candidate.id === id);
     if (!item) return;
-    const maximum = availableForOrder(item);
+    const nextQuantity = steppedQty(
+      qtyDraft[id],
+      lines[id] ?? 0,
+      delta,
+      availableForOrder(item),
+    );
+    forgetQtyDraft(id);
+    if (nextQuantity > 0) {
+      rememberInCart(id);
+      setLines((current) => ({ ...current, [id]: nextQuantity }));
+      return;
+    }
+    setCartIds((ids) => ids.filter((itemId) => itemId !== id));
     setLines((current) => {
-      const nextQuantity = Math.max(
-        0,
-        Math.min(maximum, (current[id] ?? 0) + delta),
-      );
       const next = { ...current };
-      if (nextQuantity > 0) {
-        next[id] = nextQuantity;
-        rememberInCart(id);
-      } else {
-        delete next[id];
-        setCartIds((ids) => ids.filter((itemId) => itemId !== id));
-      }
+      delete next[id];
       return next;
     });
   }
@@ -1302,16 +1371,29 @@ function EditOrderDialog({
   function setQtyValue(id: string, raw: string) {
     const item = items.find((candidate) => candidate.id === id);
     if (!item) return;
-    const parsed = parseFloat(raw.replace(",", "."));
-    const nextQuantity = Number.isFinite(parsed)
-      ? Math.max(0, Math.min(availableForOrder(item), parsed))
-      : 0;
-    if (nextQuantity > 0) rememberInCart(id);
-    else setCartIds((ids) => ids.filter((itemId) => itemId !== id));
+    const draft = qtyDraftFromRaw(raw);
+    if (draft == null) return;
+    rememberInCart(id);
+    setQtyDraft((prev) => ({ ...prev, [id]: draft }));
+    setLines((current) => ({
+      ...current,
+      [id]: qtyFromDraft(draft, availableForOrder(item)),
+    }));
+  }
+
+  function commitQty(id: string) {
+    const item = items.find((candidate) => candidate.id === id);
+    if (!item || !(id in qtyDraft)) return;
+    const nextQuantity = qtyFromDraft(qtyDraft[id], availableForOrder(item));
+    forgetQtyDraft(id);
+    if (nextQuantity > 0) {
+      setLines((current) => ({ ...current, [id]: nextQuantity }));
+      return;
+    }
+    setCartIds((ids) => ids.filter((itemId) => itemId !== id));
     setLines((current) => {
       const next = { ...current };
-      if (nextQuantity > 0) next[id] = nextQuantity;
-      else delete next[id];
+      delete next[id];
       return next;
     });
   }
@@ -1501,17 +1583,16 @@ function EditOrderDialog({
                         size="icon"
                         variant="secondary"
                         className="h-7 w-7"
-                        onClick={() => setQty(item.id, -1)}
+                        onClick={() => setQty(item.id, -QTY_STEP)}
                       >
                         −
                       </Button>
                       <Input
-                        type="number"
-                        step="any"
-                        min={0}
-                        max={availableForOrder(item)}
-                        value={quantity === 0 ? "" : String(quantity)}
+                        type="text"
+                        inputMode="decimal"
+                        value={qtyDraft[item.id] ?? formatQty(quantity)}
                         onChange={(e) => setQtyValue(item.id, e.target.value)}
+                        onBlur={() => commitQty(item.id)}
                         className="h-8 w-20 rounded-lg text-center"
                         aria-label="Quantity"
                       />
@@ -1519,7 +1600,7 @@ function EditOrderDialog({
                         type="button"
                         size="icon"
                         className="h-7 w-7 bg-blue-100 text-blue-700 hover:bg-blue-200"
-                        onClick={() => setQty(item.id, 1)}
+                        onClick={() => setQty(item.id, QTY_STEP)}
                       >
                         +
                       </Button>
