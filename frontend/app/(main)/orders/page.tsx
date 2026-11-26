@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useI18n } from "@/lib/i18n-context";
 import { useSearch } from "@/lib/search-context";
 import { api } from "@/lib/api";
@@ -1320,6 +1320,8 @@ function EditOrderDialog({
   const [phone, setPhone] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const paidSyncedToLoadedTotal = useRef(false);
+  const paidForTotal = useRef<number | null>(null);
 
   const originalLinesById = useMemo(() => {
     const map = new Map<string, ReceiptOrder["orderItems"][number]>();
@@ -1347,6 +1349,8 @@ function EditOrderDialog({
     setQtyDraft({});
     setCartIds(nextIds);
     setSearch("");
+    paidSyncedToLoadedTotal.current = false;
+    paidForTotal.current = null;
     setAmountPaid(formatAmountInput(parseAmount(order.amountPaid) ?? 0));
     setOtherChargesInput(
       formatAmountInput(parseAmount(order.otherCharges) ?? 0),
@@ -1465,6 +1469,26 @@ function EditOrderDialog({
   const gross = itemsTotal + otherCharges;
   const discountAmount = Math.max(0, parseAmount(discountInput) ?? 0);
   const total = Math.max(0, gross - discountAmount);
+  if (order) {
+    const savedTotal = parseAmount(order.totalAmount) ?? 0;
+    const savedPaid = parseAmount(order.amountPaid) ?? 0;
+    if (!paidSyncedToLoadedTotal.current) {
+      if (Math.abs(total - savedTotal) < 0.001) {
+        paidSyncedToLoadedTotal.current = true;
+        paidForTotal.current = total;
+        const saved = formatAmountInput(savedPaid);
+        if (amountPaid !== saved) setAmountPaid(saved);
+      }
+    } else if (
+      paidForTotal.current == null ||
+      Math.abs(paidForTotal.current - total) >= 0.001
+    ) {
+      paidForTotal.current = total;
+      const nextPaid = formatAmountInput(total);
+      if (amountPaid !== nextPaid) setAmountPaid(nextPaid);
+    }
+  }
+
   const paid = parseAmount(amountPaid) ?? 0;
   const balance = Math.max(0, total - paid);
 
@@ -1721,10 +1745,12 @@ function EditOrderDialog({
                   className="mt-1 bg-white"
                 />
               </div>
-              <div className="flex justify-between font-medium text-orange-600">
-                <span>{t("orders.balanceDue")}</span>
-                <span>{money(balance)}</span>
-              </div>
+              {balance > 0.001 ? (
+                <div className="flex justify-between font-medium text-orange-600">
+                  <span>{t("orders.balanceDue")}</span>
+                  <span>{money(balance)}</span>
+                </div>
+              ) : null}
             </div>
             <Button
               type="submit"
