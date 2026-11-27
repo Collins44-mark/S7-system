@@ -151,6 +151,8 @@ const en: Record<string, string> = {
     "Enter a phone number when the amount paid is not the full total.",
   "orders.cartEmpty": "No items yet. Search and add items to this order.",
   "orders.add": "Add",
+  "orders.removeItem": "Remove item",
+  "orders.inStock": "{qty} in stock",
   "orders.selectAccount": "Select an account",
   "orders.accountRequired": "Select an account to continue.",
   "orders.payFromAccount": "This sale is taken from the selected account.",
@@ -508,6 +510,8 @@ const sw: Record<string, string> = {
   "orders.cartEmpty":
     "Hakuna bidhaa bado. Tafuta na uongeze kwenye agizo hili.",
   "orders.add": "Ongeza",
+  "orders.removeItem": "Ondoa bidhaa",
+  "orders.inStock": "{qty} zipo stooni",
   "orders.selectAccount": "Chagua akaunti",
   "orders.accountRequired": "Chagua akaunti ili kuendelea.",
   "orders.payFromAccount": "Mauzo haya yanakatwa kwenye akaunti uliyochagua.",

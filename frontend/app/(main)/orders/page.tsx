@@ -42,7 +42,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { MoreVertical, Plus, ShoppingCart } from "lucide-react";
+import { MoreVertical, Plus, ShoppingCart, Trash2 } from "lucide-react";
 
 const QTY_STEP = 0.5;
 
@@ -853,6 +853,16 @@ function CreateOrderDialog({
     setSearch("");
   }
 
+  function removeLine(id: string) {
+    forgetQtyDraft(id);
+    setCartIds((ids) => ids.filter((itemId) => itemId !== id));
+    setLines((prev) => {
+      const copy = { ...prev };
+      delete copy[id];
+      return copy;
+    });
+  }
+
   function forgetQtyDraft(id: string) {
     setQtyDraft((prev) => {
       if (!(id in prev)) return prev;
@@ -1101,13 +1111,15 @@ function CreateOrderDialog({
               {searchHits.map((it) => (
                 <div
                   key={it.id}
-                  className="flex items-center justify-between gap-3 px-1 py-1"
+                  className="flex items-start justify-between gap-3 px-1 py-1"
                 >
                   <div className="min-w-0">
                     <p className="truncate text-sm font-medium">{it.name}</p>
+                    <p className="mt-0.5 text-sm font-semibold text-slate-800">
+                      {money(it.sellingPrice)}
+                    </p>
                     <p className="text-xs text-slate-500">
-                      {t("orders.stockLine", {
-                        price: money(it.sellingPrice),
+                      {t("orders.inStock", {
                         qty: `${it.quantity} ${it.unit}`,
                       })}
                     </p>
@@ -1135,18 +1147,20 @@ function CreateOrderDialog({
                 return (
                   <div
                     key={it.id}
-                    className="flex items-center justify-between rounded-xl border border-slate-100 bg-slate-50/80 p-3"
+                    className="flex items-start justify-between gap-3 rounded-xl border border-slate-100 bg-slate-50/80 p-3"
                   >
-                    <div>
-                      <p className="text-sm font-medium">{it.name}</p>
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-medium">{it.name}</p>
+                      <p className="mt-0.5 text-sm font-semibold text-slate-800">
+                        {money(it.sellingPrice)}
+                      </p>
                       <p className="text-xs text-slate-500">
-                        {t("orders.stockLine", {
-                          price: money(it.sellingPrice),
+                        {t("orders.inStock", {
                           qty: `${it.quantity} ${it.unit}`,
                         })}
                       </p>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex shrink-0 items-center gap-2">
                       <Button
                         type="button"
                         size="icon"
@@ -1172,6 +1186,16 @@ function CreateOrderDialog({
                         onClick={() => setQty(it.id, QTY_STEP)}
                       >
                         +
+                      </Button>
+                      <Button
+                        type="button"
+                        size="icon"
+                        variant="secondary"
+                        className="h-7 w-7 text-red-600 hover:bg-red-50 hover:text-red-700"
+                        aria-label={t("orders.removeItem")}
+                        onClick={() => removeLine(it.id)}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
                       </Button>
                     </div>
                   </div>
