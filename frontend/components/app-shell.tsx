@@ -6,6 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import {
   BarChart2,
   Box,
+  Factory,
   Wallet,
   Grid,
   LayoutDashboard,
@@ -39,6 +40,7 @@ import {
 const nav = [
   { href: "/dashboard", navKey: "dashboard", icon: LayoutDashboard },
   { href: "/inventory", navKey: "inventory", icon: Package },
+  { href: "/production", navKey: "production", icon: Factory },
   { href: "/categories", navKey: "categories", icon: Grid },
   { href: "/orders", navKey: "orders", icon: ShoppingCart },
   { href: "/customers", navKey: "customers", icon: Users },

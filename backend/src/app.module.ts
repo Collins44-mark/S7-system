@@ -11,6 +11,7 @@ import { OrdersModule } from './orders/orders.module';
 import { DebtsModule } from './debts/debts.module';
 import { ReportsModule } from './reports/reports.module';
 import { ExpensesModule } from './expenses/expenses.module';
+import { ProductionModule } from './production/production.module';
 import { AdminModule } from './admin/admin.module';
 
 @Module({
@@ -26,6 +27,7 @@ import { AdminModule } from './admin/admin.module';
     DebtsModule,
     ReportsModule,
     ExpensesModule,
+    ProductionModule,
   ],
   controllers: [AppController],
   providers: [AppService],

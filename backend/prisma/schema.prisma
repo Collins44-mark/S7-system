@@ -75,6 +75,7 @@ model Business {
   restocks    Restock[]
   accountEntries AccountEntry[]
   expenses    Expense[]
+  productions Production[]
 }
 
 model Category {
@@ -104,6 +105,8 @@ model Item {
   business          Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
   orderItems        OrderItem[]
   restockLogs       RestockLog[]
+  productionsAsSource Production[] @relation("ProductionSource")
+  productionsAsResult Production[] @relation("ProductionResult")
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
@@ -257,6 +260,23 @@ model AccountEntry {
   @@index([customerId])
   @@index([businessId])
   @@index([orderId])
+}
+
+model Production {
+  id             String   @id @default(cuid())
+  businessId     String
+  business       Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  sourceItemId   String
+  sourceItem     Item     @relation("ProductionSource", fields: [sourceItemId], references: [id], onDelete: Restrict)
+  sourceQuantity      Decimal  @db.Decimal(18, 6)
+  sourceQuantityAfter Decimal  @db.Decimal(18, 6)
+  resultItemId        String
+  resultItem          Item     @relation("ProductionResult", fields: [resultItemId], references: [id], onDelete: Restrict)
+  resultQuantity      Decimal  @db.Decimal(18, 6)
+  resultQuantityAfter Decimal  @db.Decimal(18, 6)
+  createdAt           DateTime @default(now())
+
+  @@index([businessId, createdAt])
 }
 
 model Expense {
